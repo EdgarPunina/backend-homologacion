@@ -112,7 +112,6 @@ Flujo acordado: `main → develop → feature/*`. Las ramas `feature/*` nacen de
 - [Arquitectura del backend](docs/arquitectura-backend.md).
 - [API REST](docs/api.md).
 - [Convenciones de desarrollo](docs/convenciones.md).
-- [Decisiones funcionales del grupo](docs/decisiones-funcionales.md).
 
 ## Referencias del framework
 

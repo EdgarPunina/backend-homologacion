@@ -83,7 +83,7 @@ Todavía no se integran migraciones del dominio: serán revisadas posteriormente
 
 Quedan pendientes la revisión del modelo de datos contra el SRS, los estados y transiciones, el alcance de los permisos, los contratos funcionales y el detalle de notificaciones y reportes. El SRS no forma parte de la información revisada para esta documentación; no se infieren sus relaciones ni reglas.
 
-Esta fase documenta y comprueba la base técnica. No implementa módulos, autenticación, roles ni persistencia del dominio. Véanse las [decisiones funcionales](decisiones-funcionales.md), las [convenciones](convenciones.md) y el [contrato de API](api.md).
+Esta fase documenta y comprueba la base técnica. No implementa módulos, autenticación, roles ni persistencia del dominio. Véanse las [convenciones](convenciones.md) y el [contrato de API](api.md).
 
 ## Coordinación con el equipo de base de datos
 
