@@ -4,7 +4,6 @@ namespace App\Http\Requests\Api\Student;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateProfileRequest extends FormRequest
 {
@@ -13,7 +12,7 @@ class UpdateProfileRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('Estudiante') ?? false;
+        return $this->user()?->hasRole('estudiante') ?? false;
     }
 
     /**
@@ -24,9 +23,6 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombres_completos' => ['sometimes', 'required', 'string', 'max:255'],
-            'cedula' => ['sometimes', 'required', 'string', 'between:10,20', Rule::unique('users', 'cedula')->ignore($this->user()?->getKey())],
-            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user()?->getKey())],
             'numero_celular' => ['sometimes', 'required', 'string', 'between:7,20'],
         ];
     }

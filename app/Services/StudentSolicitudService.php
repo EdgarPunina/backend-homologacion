@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class StudentSolicitudService
 {
+    public function __construct(private SolicitudWorkflowService $workflow) {}
+
     /** @return list<string> */
     public function relations(): array
     {
@@ -31,7 +33,7 @@ class StudentSolicitudService
 
     public function state(Solicitud $solicitud): ?string
     {
-        return $solicitud->ultimoHistorialEstado()->with('estadoSolicitud')->first()?->estadoSolicitud?->nombre;
+        return $this->workflow->currentState($solicitud);
     }
 
     /** @param array{coordinador_carrera_id: int, tramite_proceso_id: int, procedencia_estudios: string} $data */
@@ -43,7 +45,7 @@ class StudentSolicitudService
                 ->where('coordinador_carrera_id', $data['coordinador_carrera_id'])->firstOrFail();
             $assignment = $enrollment->coordinadorCarrera()->lockForUpdate()->firstOrFail();
             $coordinator = $assignment->coordinador;
-            abort_unless($coordinator?->cuenta_activa && $coordinator->hasRole('Coordinador'), 409, 'La carrera no tiene un coordinador activo.');
+            abort_unless($coordinator?->cuenta_activa && $coordinator->hasRole('coordinador'), 409, 'La carrera no tiene un coordinador activo.');
 
             $existing = $student->solicitudesComoEstudiante()->where('carrera_id', $assignment->carrera_id)
                 ->where('tramite_proceso_id', $data['tramite_proceso_id'])
@@ -66,7 +68,7 @@ class StudentSolicitudService
                     'estado_documento_id' => $pendingDocument->id,
                 ]);
             }
-            $this->recordState($solicitud, 'pendiente', 'Solicitud creada por el estudiante.');
+            $this->recordState($solicitud, 'pendiente', 'Solicitud creada por el estudiante.', $student);
 
             return $solicitud;
         });
@@ -90,7 +92,7 @@ class StudentSolicitudService
             $solicitud = $this->owned($student, $id, true);
             abort_unless(in_array($this->state($solicitud), ['pendiente', 'observado'], true), 409, 'La solicitud no permite un envío a revisión en su estado actual.');
             $coordinator = $solicitud->coordinador;
-            abort_unless($coordinator?->cuenta_activa && $coordinator->hasRole('Coordinador'), 409, 'La solicitud no tiene un coordinador activo.');
+            abort_unless($coordinator?->cuenta_activa && $coordinator->hasRole('coordinador'), 409, 'La solicitud no tiene un coordinador activo.');
             if (! $student->antecedentesAcademicos()->exists()) {
                 throw ValidationException::withMessages(['antecedentes' => 'Registre sus antecedentes académicos antes de enviar la solicitud.']);
             }
@@ -102,16 +104,17 @@ class StudentSolicitudService
             if ($documents->isEmpty() || $missing->isNotEmpty()) {
                 throw ValidationException::withMessages(['documentos' => 'Complete o corrija todos los documentos requeridos antes de enviar.']);
             }
-            $this->recordState($solicitud, 'en_revision', 'Documentación enviada a revisión por el estudiante.');
+            $this->workflow->transition($solicitud, 'en_revision', $student, 'Documentación enviada a revisión por el estudiante.');
 
             return $solicitud;
         });
     }
 
-    private function recordState(Solicitud $solicitud, string $state, string $message): void
+    private function recordState(Solicitud $solicitud, string $state, string $message, User $actor): void
     {
         $solicitud->historialEstados()->create([
             'estado_solicitud_id' => EstadoSolicitud::query()->where('nombre', $state)->firstOrFail()->id,
+            'usuario_responsable_id' => $actor->id,
             'observacion' => $message,
         ]);
     }

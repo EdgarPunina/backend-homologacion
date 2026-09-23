@@ -23,7 +23,7 @@ class UserResource extends JsonResource
             'email' => $this->resource->email,
             'numero_celular' => $this->resource->numero_celular,
             'cuenta_activa' => $this->resource->cuenta_activa,
-            'roles' => $this->whenLoaded('roles', fn () => $this->resource->roles->pluck('name')->values()),
+            'roles' => $this->whenLoaded('roles', fn () => $this->resource->roles->pluck('nombre')->values()),
             'creador' => $this->whenLoaded('creador', fn () => $this->resource->creador === null ? null : [
                 'id' => $this->resource->creador->getKey(),
                 'nombres_completos' => $this->resource->creador->nombres_completos,

@@ -29,7 +29,7 @@ Los errores de API tienen `success: false` y `message`. Los errores 422 añaden 
 | POST | `/logout` | Cualquier cuenta activa | — |
 | GET | `/roles` | Administrador | — |
 
-El registro público siempre asigna `Estudiante`; cualquier rol enviado por el cliente se ignora. Login y registro están limitados a 10 solicitudes por minuto. Login devuelve `user`, `token` y `token_type: Bearer`. Logout revoca solo el token actual. Una cuenta inactiva no puede iniciar sesión ni reutilizar un token previo.
+El registro público siempre asigna `estudiante`; cualquier rol enviado por el cliente se ignora. Los valores API son `administrador`, `coordinador` y `estudiante`. Login y registro están limitados a 10 solicitudes por minuto. Login devuelve `user`, `token` y `token_type: Bearer`. Logout revoca solo el token actual. Una cuenta inactiva no puede iniciar sesión ni reutilizar un token previo.
 
 ```json
 {
@@ -50,7 +50,7 @@ Todas las rutas siguientes requieren token activo y rol `Administrador`.
 | PUT/PATCH | `/admin/users/{id}` | Actualiza exclusivamente campos permitidos. |
 | PATCH | `/admin/users/{id}/status` | Activa o desactiva la cuenta. |
 
-Filtros de listado: `search` (nombre, cédula o correo), `rol`, `cuenta_activa`, `order_by` (`id`, `nombres_completos`, `cedula`, `email`, `created_at`), `direction` (`asc`, `desc`), `page` y `per_page`. Un `rol` inexistente para el guard `web` devuelve 422 con un error en `errors.rol`.
+Filtros de listado: `search` (nombre, cédula o correo), `rol`, `cuenta_activa`, `order_by` (`id`, `nombres_completos`, `cedula`, `email`, `created_at`), `direction` (`asc`, `desc`), `page` y `per_page`. Un `rol` inexistente en `roles.nombre` devuelve 422 con un error en `errors.rol`.
 
 Creación:
 
@@ -96,13 +96,13 @@ Estas rutas requieren token, cuenta activa y rol `Estudiante`. Siempre operan so
 | Método | Endpoint | Descripción |
 | --- | --- | --- |
 | GET | `/student/profile` | Perfil propio, antecedentes y carreras asignadas. |
-| PATCH | `/student/profile` | Actualización parcial de nombre, cédula, correo y celular. |
+| PATCH | `/student/profile` | Actualización parcial exclusivamente de `numero_celular`. |
 | GET | `/student/antecedentes` | Antecedentes propios paginados (`page`, `per_page`, máximo 100). |
 | POST | `/student/antecedentes` | Registra un antecedente propio. |
 | GET | `/student/antecedentes/{id}` | Consulta un antecedente propio. |
 | PATCH | `/student/antecedentes/{id}` | Actualiza parcialmente un antecedente propio. |
 
-El perfil admite `nombres_completos` (máximo 255), `cedula` (10–20 caracteres, única), `email` (correo válido, máximo 255, único) y `numero_celular` (7–20 caracteres). Cambiar el correo elimina su marca de verificación anterior. Roles, estado de cuenta, creador y contraseña no se modifican desde este endpoint.
+El perfil admite únicamente `numero_celular` (7–20 caracteres). Nombre, cédula, correo, roles, estado de cuenta, creador y contraseña se ignoran y no se modifican desde este endpoint.
 
 Crear un antecedente requiere los cuatro campos siguientes; `PATCH` admite cualquier subconjunto, sin valores vacíos:
 
@@ -144,7 +144,7 @@ El detalle contiene, si existen: estudiante, coordinador, trámite/proceso, proc
 | POST | `/admin/solicitudes/{id}/resolucion` | Registra metadatos y almacena un PDF privado. |
 | GET | `/admin/solicitudes/{id}/resolucion/download` | Descarga autorizada del PDF. |
 
-La carga usa `multipart/form-data` con `numero_resolucion` único (máximo 100 caracteres), `fecha_aprobacion` y `archivo` PDF de hasta 10 MB. Solo se admite una resolución por solicitud. La ruta interna nunca se devuelve; la respuesta incluye `download_url`.
+La carga usa `multipart/form-data` con `numero_resolucion` único (máximo 100 caracteres), `fecha_aprobacion` y `archivo` PDF. El límite se configura con `MAX_PRIVATE_PDF_SIZE_KB` (10 MB por defecto). Solo se admite una resolución por solicitud. La ruta interna nunca se devuelve; la respuesta incluye `download_url`.
 
 ## Reportes y estadísticas
 
@@ -200,7 +200,7 @@ observado → corregir documentos señalados → reenviar → en_revision
 
 El envío exige antecedentes académicos y todos los archivos requeridos presentes en almacenamiento, con estado `presentado` o `aprobado` (estos últimos deben tener `validez=true`). Los faltantes devuelven 422 en `errors.antecedentes` o `errors.documentos`. Enviar de nuevo una solicitud ya en revisión devuelve 409 y no duplica el historial. El estudiante no puede aprobar documentos ni establecer estados administrativos.
 
-La carga usa `multipart/form-data`, campo `archivo`, PDF de hasta 10 MB validado por contenido MIME. El servidor PHP debe permitir ese tamaño (`upload_max_filesize` al menos `10M` y `post_max_size` mayor, por ejemplo `12M`). Cambiar la extensión de un archivo no lo convierte en PDF válido.
+La carga usa `multipart/form-data`, campo `archivo`, PDF validado por contenido MIME. El límite proviene de `MAX_PRIVATE_PDF_SIZE_KB` (10240 KB por defecto). `upload_max_filesize` y `post_max_size` deben admitir un valor igual o mayor. Cambiar la extensión de un archivo no lo convierte en PDF válido.
 
 En una solicitud pendiente se pueden cargar/reemplazar documentos `pendiente` o `presentado`. En una solicitud observada se permiten documentos `observado` o todavía `pendiente`; los aprobados quedan protegidos. Una corrección vuelve a `presentado`, reinicia `validez=false` y conserva las observaciones históricas. El archivo anterior se elimina solo después de persistir el reemplazo; si falla la base, se conserva el anterior y se elimina el nuevo. No se ofrece un archivo histórico de versiones de PDF.
 
@@ -208,10 +208,116 @@ Los archivos se guardan en el disco privado `local`. La API entrega enlaces de d
 
 ### Notificaciones
 
-Los avisos se guardan en la base de datos y se consultan desde el frontend; no se envía correo ni se necesita un trabajador de colas. Se generan al crear registros Eloquent de historial de estado, observación documental o resolución. El módulo Coordinador deberá usar esos modelos y transacciones; las escrituras SQL directas o eventos deshabilitados no generan avisos.
+Los avisos se guardan en la base de datos y se consultan desde el frontend. El correo se habilita con `STUDENT_MAIL_NOTIFICATIONS=true` y se procesa mediante cola, por lo que SMTP no bloquea la transacción principal. Se generan al crear registros Eloquent de historial de estado, observación documental o resolución; las escrituras SQL directas o eventos deshabilitados no generan avisos.
 
 Los avisos contienen `solicitud_id`, `evento`, `mensaje` y `url`. Los tipos son `estado_actualizado`, `documento_observado` y `resolucion_registrada`. El listado devuelve `data`, `links`, `meta` y el total `sin_leer`. Los avisos de una transacción revertida se revierten junto con sus datos.
 
 ## Alcance restante
 
-El flujo backend de Estudiante acordado está implementado. La revisión documental/académica, emisión del dictamen y transición a estados finales pertenecen al módulo Coordinador, que sigue pendiente. El frontend es independiente. Los catálogos y asignaciones institucionales reales deben configurarse antes de operar con estudiantes reales; los datos `[DEMO]` son exclusivamente de desarrollo.
+El flujo backend de Estudiante y Coordinador está implementado. El frontend es independiente. Los catálogos y asignaciones institucionales reales deben configurarse antes de operar con estudiantes reales; los datos `[DEMO]` son exclusivamente de desarrollo.
+
+## Coordinador
+
+Todas las rutas de esta sección requieren `Authorization: Bearer {token}`, cuenta activa y rol `Coordinador`. El servidor obtiene al Coordinador desde el token; ningún body acepta `coordinador_id`. Los recursos se limitan a sus filas en `coordinador_carreras`. Un ID ajeno devuelve 404 para no revelar su existencia; un filtro explícito por una carrera no asignada devuelve 403.
+
+### Catálogo, estudiantes, solicitudes y reportes
+
+| Método | Endpoint | Query/body y validación | Respuesta correcta | Errores específicos |
+| --- | --- | --- | --- | --- |
+| GET | `/coordinator/catalogo` | — | 200; carreras permitidas, estados, trámites, ciclos y transiciones | 401, 403 |
+| GET | `/coordinator/students` | `search`, `cuenta_activa`, `carrera`, `per_page` 1–100 | 200; `data`, `links`, `meta` | 403 carrera ajena; 422 filtro inválido |
+| GET | `/coordinator/students/{id}` | `id` entero | 200; perfil, antecedentes, carreras y solicitudes permitidas | 404 ajeno/inexistente |
+| GET | `/coordinator/solicitudes` | `search`, `estado`, `carrera`, `tipo_tramite`, `tipo_proceso`, `estudiante`, `fecha_desde`, `fecha_hasta`, `per_page` | 200 paginado | 403 carrera ajena; 422 filtros inválidos |
+| GET | `/coordinator/solicitudes/{id}` | `id` entero | 200; expediente, documentos, historial, comparaciones, resultado y resolución | 404 ajena/inexistente |
+| GET | `/coordinator/reports/solicitudes` | Mismos filtros del listado; `per_page` predeterminado 50 | 200; filtros, total, agrupación por estado, registros y paginación | 403, 422 |
+
+Las búsquedas de estudiantes consideran nombres, cédula y correo. El detalle no expone contraseñas ni rutas internas de almacenamiento.
+
+### Documentos y verificaciones
+
+| Método | Endpoint | Query/body y validación | Respuesta correcta | Errores específicos |
+| --- | --- | --- | --- | --- |
+| GET | `/coordinator/solicitudes/{id}/documents` | — | 200; documentos y revisiones | 404 solicitud ajena |
+| GET | `/coordinator/documents/{id}` | — | 200; requisito, estado, observaciones y verificaciones | 404 documento ajeno |
+| GET | `/coordinator/documents/{id}/download` | — | 200 `application/pdf`, descarga privada | 404 ajeno/archivo ausente |
+| PATCH | `/coordinator/documents/{id}/review` | `estado`: `aprobado`/`observado`; `observacion` obligatoria al observar, máx. 2000 | 200; documento actualizado | 404 ajeno; 409 etapa/archivo; 422 body |
+| POST | `/coordinator/documents/{id}/verification` | `estado` booleano | 200; verificación creada o actualizada | 404 ajeno; 409 etapa; 422 body |
+
+```json
+{
+  "estado": "observado",
+  "observacion": "El documento no contiene todas las páginas."
+}
+```
+
+Observar crea un registro histórico en `observaciones_documentacion`, cambia la solicitud a `observado` y notifica al Estudiante. Su reemplazo conserva observaciones, vuelve el documento a `presentado` y permite reenviar la solicitud a `en_revision`. Aprobar establece `validez=true`. Cuando todos los documentos están aprobados y todas sus verificaciones registradas son positivas, la solicitud pasa a `en_proceso`.
+
+### Mallas, asignaturas y sílabos
+
+| Método | Endpoint | Query/body y validación | Respuesta correcta | Errores específicos |
+| --- | --- | --- | --- | --- |
+| GET | `/coordinator/curricula` | `search`, `tipo`, `carrera`, `estudiante`, `activa`, `per_page` | 200 paginado | 403 carrera ajena; 422 |
+| POST | `/coordinator/curricula` | `nombre`; `tipo`; `carrera_id` requerido si institucional; `estudiante_id` requerido si origen; `activa` opcional | 201; malla | 403 contexto ajeno; 422 |
+| GET | `/coordinator/curricula/{id}` | — | 200; malla, creador y asignaturas | 404 ajena |
+| PUT/PATCH | `/coordinator/curricula/{id}` | `nombre` y/o `activa` | 200; malla actualizada | 404 ajena; 422 |
+| PATCH | `/coordinator/curricula/{id}/status` | `activa` booleano | 200; malla actualizada | 404, 422 |
+| GET | `/coordinator/curricula/{id}/subjects` | `page` | 200 paginado | 404 malla ajena |
+| POST | `/coordinator/curricula/{id}/subjects` | código, nombre, créditos ≥0, ciclo válido, carga horaria ≥0 | 201; asignatura | 404; 409 código duplicado; 422 |
+| GET | `/coordinator/subjects/{id}` | — | 200; asignatura, malla y temas | 404 ajena |
+| PUT/PATCH | `/coordinator/subjects/{id}` | subconjunto de campos de asignatura | 200; asignatura actualizada | 404; 409 código duplicado; 422 |
+| GET | `/coordinator/subjects/{id}/syllabus-topics` | — | 200; temas ordenados | 404 asignatura ajena |
+| POST | `/coordinator/subjects/{id}/syllabus-topics` | `tema`, `unidad_analitica`, máx. 255 | 201; tema | 404, 422 |
+| PUT | `/coordinator/syllabus-topics/{id}` | `tema` y/o `unidad_analitica` | 200; tema actualizado | 404 ajeno; 422 |
+
+Los ciclos admitidos son `primero` a `decimo`. `hr_carga_horaria` existe en la migración real y es obligatorio. Origen/destino se deduce de `mallas_curriculares.tipo`; no existen campos redundantes.
+
+### Comparaciones, resultado e informe técnico
+
+| Método | Endpoint | Query/body y validación | Respuesta correcta | Errores específicos |
+| --- | --- | --- | --- | --- |
+| GET | `/coordinator/solicitudes/{id}/comparisons` | — | 200; matriz con códigos, créditos, ciclo y porcentaje | 404 solicitud ajena |
+| POST | `/coordinator/solicitudes/{id}/comparisons` | IDs origen/destino distintos; porcentaje 0–100; observación opcional | 201; comparación | 403 destino ajeno; 409 etapa/duplicado; 422 |
+| PUT | `/coordinator/comparisons/{id}` | cuerpo completo de comparación | 200; comparación actualizada | 403, 404, 409, 422 |
+| DELETE | `/coordinator/comparisons/{id}` | — | 200; confirmación | 404 ajena; 409 fuera de análisis |
+| GET | `/coordinator/solicitudes/{id}/result` | — | 200; resultado | 404 solicitud/resultado |
+| POST | `/coordinator/solicitudes/{id}/result` | `conclusion_general`: `total`, `parcial`, `rechazada`; créditos ≥0 | 201; resultado | 404 ajena; 409 requisitos, etapa, comparación o duplicado; 422 |
+| POST | `/coordinator/solicitudes/{id}/technical-report` | — | 201; metadatos del informe | 404 ajena; 409 sin resultado aprobatorio |
+| GET | `/coordinator/solicitudes/{id}/technical-report` | — | 200 `application/pdf` | 404 ajena/informe ausente |
+
+La asignatura origen debe pertenecer a una malla `origen` del Estudiante de la solicitud. La de destino debe pertenecer a una malla `institucional` de la carrera exacta de la solicitud. El resultado es único por solicitud y usa siempre el Coordinador autenticado. `total`/`parcial` cambia a `aprobado`; `rechazada` cambia a `rechazado`.
+
+### Estados y resolución
+
+| Método | Endpoint | Query/body y validación | Respuesta correcta | Errores específicos |
+| --- | --- | --- | --- | --- |
+| POST | `/coordinator/solicitudes/{id}/state` | `estado` existente; `observacion` obligatoria para rechazo | 200; solicitud con estado actual | 404 ajena; 409 transición/condición; 422 |
+| POST | `/coordinator/solicitudes/{id}/resolution` | `multipart/form-data`: número único máx. 100, fecha, PDF con límite configurable | 201; resolución y solicitud `listo` | 404 ajena; 409 etapa/duplicado; 422 |
+| GET | `/coordinator/solicitudes/{id}/resolution/download` | — | 200 `application/pdf` | 404 ajena/archivo ausente |
+
+Transiciones válidas y condiciones:
+
+```text
+pendiente → en_revision       documentos completos
+en_revision → observado      existe documento observado
+observado → en_revision      documentos observados corregidos
+en_revision → en_proceso     documentos y verificaciones aprobados
+en_revision → rechazado      motivo documental obligatorio
+observado → rechazado        motivo documental obligatorio
+en_proceso → aprobado        resultado total o parcial
+en_proceso → rechazado       resultado rechazado y motivo
+aprobado → en_consejo        informe técnico generado
+en_consejo → listo           resolución externa registrada
+en_consejo → rechazado       decisión motivada del Consejo
+```
+
+Cada transición crea una fila, nunca sobrescribe historial, y registra `usuario_responsable_id`, `etapa_origen`, observación y timestamps. Las operaciones críticas usan transacción y bloqueo de la solicitud.
+
+## Contrato para integración Frontend
+
+- URL base local: `http://127.0.0.1:8000/api/v1`; en otros ambientes usar `APP_URL`.
+- Headers: `Accept: application/json` y `Authorization: Bearer {token}`. JSON usa `Content-Type: application/json`; resolución usa `multipart/form-data`.
+- `GET /me` incluye `roles` y, para Coordinador, `carreras_coordinadas`.
+- Listados grandes usan `page`, `per_page`, `data`, `links` y `meta`; el reporte incluye su bloque `paginacion`.
+- Las descargas usan únicamente `download_url` o endpoints documentados; nunca se construyen rutas de `storage`.
+- Errores: 401 token, 403 rol/carrera, 404 aislamiento de recurso, 409 conflicto de flujo y 422 validación con `errors`.
+- El frontend debe refrescar el detalle tras cada escritura porque una revisión, resultado o resolución puede cambiar automáticamente el estado.

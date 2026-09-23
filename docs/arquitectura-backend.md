@@ -1,26 +1,40 @@
 # Arquitectura del backend
 
-El proyecto es una API REST Laravel desacoplada. El frontend independiente consume HTTP/JSON y no comparte lógica de negocio con este repositorio.
-
 ```text
-Cliente → rutas/middleware → Form Request → Controller → Service/Eloquent → Resource → JSON
+React → HTTP/JSON → Laravel 13 → Eloquent → PostgreSQL 18
 ```
 
-## Responsabilidades
+La API está versionada bajo `/api/v1`. `routes/api.php` aplica Sanctum, cuenta activa y rol; los Form Requests validan entrada; los controladores coordinan HTTP; los servicios contienen transacciones y reglas; los Resources controlan la salida.
 
-- `routes/api.php`: versionado `/api/v1`, middleware Sanctum, cuenta activa y rol.
-- `app/Http/Requests`: filtros y validación de entradas administrativas.
-- `app/Http/Controllers/Api/Admin`: coordinación HTTP sin lógica de persistencia compleja.
-- `app/Services`: transacciones de usuarios/resoluciones y consulta reutilizable de solicitudes.
-- `app/Models`: entidades y relaciones Eloquent del modelo existente.
-- `app/Http/Resources`: contrato de salida sin contraseñas ni rutas privadas.
-- `storage/app/private`: archivos de resoluciones, accesibles solo mediante descarga autorizada.
-- `tests/Feature`: contratos HTTP, autorización, persistencia, filtros y archivos.
+## Límites de seguridad
 
-## Seguridad
+- Roles oficiales en `roles.nombre` y asignaciones en `user_has_rol`.
+- Middleware propio para `administrador`, `coordinador` y `estudiante`.
+- `CoordinatorAccessService` limita todas las consultas a carreras asignadas.
+- Los estudiantes solo operan sobre recursos propios.
+- Los PDF permanecen en el disco privado `local`; nunca se expone una ruta física.
+- Las operaciones sensibles usan transacciones, bloqueos `FOR UPDATE` y restricciones únicas.
 
-Sanctum autentica tokens Bearer. Spatie resuelve roles mediante `roles` y `model_has_roles`. Todas las rutas administrativas requieren `Administrador`; `EnsureAccountIsActive` impide que una cuenta desactivada reutilice un token. Los PDF no se publican mediante enlaces de storage.
+## Servicios principales
 
-## Límites del módulo actual
+- `StudentSolicitudService`: creación, envío y corrección de solicitudes.
+- `CoordinatorDocumentService`: revisión y verificación documental.
+- `AcademicAnalysisService`: comparaciones y resultado único.
+- `SolicitudWorkflowService`: transiciones, precondiciones e historial.
+- `TechnicalReportService`: informe técnico PDF privado.
+- `ResolutionService`: resolución externa y cierre.
 
-El Administrador gestiona usuarios, carreras de coordinadores, consultas, resoluciones y reportes JSON. Estudiante incluye perfil, antecedentes, solicitudes, documentos privados, correcciones, seguimiento, notificaciones internas y descarga final. Sus consultas parten siempre de relaciones del usuario autenticado. `StudentSolicitudService` y `StudentDocumentService` aplican estados y transacciones; los observers de historial, observaciones y resoluciones generan avisos en la misma base de datos. Coordinador sigue pendiente. La referencia contractual es [api.md](api.md).
+Los observers generan notificaciones internas después de persistir historial, observaciones o resoluciones. El correo opcional implementa `ShouldQueue`, de modo que una indisponibilidad SMTP no revierte la lógica principal.
+
+## Máquina de estados
+
+```text
+pendiente → en_revision
+en_revision → observado | en_proceso | rechazado
+observado → en_revision | rechazado
+en_proceso → aprobado | rechazado
+aprobado → en_consejo
+en_consejo → listo | rechazado
+```
+
+`historial_estados_solicitud` registra el estado nuevo, `etapa_origen`, usuario responsable, observación y fecha. Los estados terminales son `listo` y `rechazado`.

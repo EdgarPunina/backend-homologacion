@@ -28,6 +28,10 @@ class ProfileTest extends TestCase
         $student = $this->authenticateStudent();
         $other = User::factory()->create();
         $originalPassword = $student->password;
+        $originalEmailVerifiedAt = $student->email_verified_at;
+        $originalName = $student->nombres_completos;
+        $originalEmail = $student->email;
+        $originalCedula = $student->cedula;
 
         $this->patchJson('/api/v1/student/profile', [
             'nombres_completos' => 'Nombre actualizado',
@@ -36,40 +40,50 @@ class ProfileTest extends TestCase
             'id' => $other->id,
             'cuenta_activa' => false,
             'rol_id' => 1,
-            'roles' => ['Administrador'],
+            'roles' => ['administrador'],
             'creador_id' => $other->id,
             'password' => 'ChangedPassword123!',
             'email_verified_at' => now()->toISOString(),
-        ])->assertOk()->assertJsonPath('data.nombres_completos', 'Nombre actualizado');
+        ])->assertOk()->assertJsonPath('data.nombres_completos', $originalName);
 
         $student->refresh();
-        $this->assertSame('nuevo@example.com', $student->email);
+        $this->assertSame($originalName, $student->nombres_completos);
+        $this->assertSame($originalEmail, $student->email);
+        $this->assertSame($originalCedula, $student->cedula);
         $this->assertSame('0991111111', $student->numero_celular);
-        $this->assertNull($student->email_verified_at);
+        $this->assertEquals($originalEmailVerifiedAt, $student->email_verified_at);
         $this->assertNull($student->creador_id);
         $this->assertTrue($student->cuenta_activa);
         $this->assertSame($originalPassword, $student->password);
-        $this->assertSame(['Estudiante'], $student->getRoleNames()->all());
+        $this->assertSame(['estudiante'], $student->getRoleNames()->all());
         $this->assertSame($other->nombres_completos, $other->fresh()->nombres_completos);
     }
 
-    public function test_student_can_keep_own_identity_and_email_verification(): void
+    public function test_student_cannot_change_identity_fields(): void
     {
         $student = $this->authenticateStudent();
 
-        $this->patchJson('/api/v1/student/profile', ['email' => $student->email, 'cedula' => $student->cedula])
+        $this->patchJson('/api/v1/student/profile', [
+            'nombres_completos' => 'Nombre no permitido',
+            'email' => 'correo-no-permitido@example.com',
+            'cedula' => '0999999999',
+        ])
             ->assertOk();
 
-        $this->assertNotNull($student->fresh()->email_verified_at);
+        $student->refresh();
+        $this->assertNotSame('Nombre no permitido', $student->nombres_completos);
+        $this->assertNotSame('correo-no-permitido@example.com', $student->email);
+        $this->assertNotSame('0999999999', $student->cedula);
+        $this->assertNotNull($student->email_verified_at);
     }
 
-    public function test_duplicate_identity_returns_422_without_changing_profile(): void
+    public function test_identity_fields_are_ignored_without_changing_profile(): void
     {
         $student = $this->authenticateStudent();
         $other = User::factory()->create();
 
         $this->patchJson('/api/v1/student/profile', ['email' => $other->email, 'cedula' => $other->cedula])
-            ->assertUnprocessable()->assertJsonValidationErrors(['email', 'cedula']);
+            ->assertOk();
 
         $this->assertSame($student->email, $student->fresh()->email);
         $this->assertSame($student->cedula, $student->fresh()->cedula);
@@ -81,7 +95,7 @@ class ProfileTest extends TestCase
 
         $this->patchJson('/api/v1/student/profile', [
             'nombres_completos' => '', 'cedula' => '1', 'email' => 'invalid', 'numero_celular' => '1',
-        ])->assertUnprocessable()->assertJsonValidationErrors(['nombres_completos', 'cedula', 'email', 'numero_celular']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['numero_celular']);
     }
 
     public function test_profile_requires_authentication_and_student_role(): void

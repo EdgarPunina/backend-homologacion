@@ -35,7 +35,7 @@ class ApiAuthenticationTest extends TestCase
             ->assertJsonPath('user.nombres_completos', 'Ana Pérez')
             ->assertJsonPath('user.cedula', '0912345678')
             ->assertJsonPath('user.numero_celular', '0991234567')
-            ->assertJsonPath('user.roles.0', 'Estudiante')
+            ->assertJsonPath('user.roles.0', 'estudiante')
             ->assertJsonStructure(['token']);
         $this->assertFalse(User::whereEmail('ana@example.com')->firstOrFail()->hasRole('Administrador'));
     }
@@ -50,7 +50,7 @@ class ApiAuthenticationTest extends TestCase
         $token = $this->postJson('/api/v1/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertOk()->json('token');
 
-        $this->withToken($token)->getJson('/api/v1/me')->assertOk()->assertJsonPath('user.roles.0', 'Coordinador');
+        $this->withToken($token)->getJson('/api/v1/me')->assertOk()->assertJsonPath('user.roles.0', 'coordinador');
         $this->withToken($token)->postJson('/api/v1/logout')->assertOk();
         $this->assertSame(1, PersonalAccessToken::count());
         Auth::forgetGuards();
@@ -72,7 +72,7 @@ class ApiAuthenticationTest extends TestCase
         $admin->assignRole('Administrador');
         Auth::forgetGuards();
         $this->withToken($admin->createToken('test')->plainTextToken)
-            ->getJson('/api/v1/roles')->assertOk()->assertJsonFragment(['Administrador']);
+            ->getJson('/api/v1/roles')->assertOk()->assertJsonFragment(['administrador']);
     }
 
     public function test_registration_validates_input(): void

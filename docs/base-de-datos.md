@@ -1,103 +1,37 @@
-# Base de datos: configuración, operación y decisiones
+# Base de datos
 
-## Estado implementado
+PostgreSQL es el motor definitivo. `.env.example` contiene la plantilla de conexión y `phpunit.xml` fuerza una base exclusiva `backend_homologacion_test`.
 
-El entorno local utiliza SQLite mediante:
-
-```dotenv
-DB_CONNECTION=sqlite
-```
-
-Laravel resuelve el archivo como `database/database.sqlite`. El archivo contiene datos locales y está ignorado por Git, al igual que `.env`. La fuente versionada de la estructura y los datos iniciales está formada por:
-
-- `database/migrations` para esquema, claves foráneas, índices y restricciones;
-- `database/seeders` para catálogos y roles;
-- `database/factories` para datos de pruebas automáticas.
-
-No se requiere un archivo `.sql` para instalar el proyecto.
-
-## Inicialización reproducible
+## Preparación local
 
 ```sh
-cp .env.example .env
-php artisan key:generate
-touch database/database.sqlite
-php artisan migrate --seed
+createdb backend_homologacion
+createdb backend_homologacion_test
+php artisan migrate:fresh --seed
 php artisan migrate:status
 ```
 
-La inicialización actual tiene 15 migraciones y 38 tablas. Las migraciones adicionales protegen las asignaciones de estudiantes contra borrados en cascada, guardan la carrera de solicitudes nuevas y añaden las notificaciones. Los datos iniciales esperados son:
+Nunca ejecutes `migrate:fresh` sobre una base compartida o productiva. Las credenciales reales solo pertenecen a `.env` o al gestor de secretos; no deben versionarse.
 
-| Catálogo | Cantidad |
-| --- | ---: |
-| Roles | 3 |
-| Tipos de trámite | 2 |
-| Tipos de proceso | 3 |
-| Estados de documento | 4 |
-| Estados de solicitud | 8 |
-| Combinaciones trámite/proceso | 3 |
+## Roles
 
-Los seeders usan operaciones idempotentes; ejecutarlos nuevamente no debe duplicar estos registros.
+La fuente de verdad es:
 
-## Administrador inicial
-
-`AdminUserSeeder` solo crea una cuenta si el entorno define todos los valores:
-
-```dotenv
-INITIAL_ADMIN_NAME=
-INITIAL_ADMIN_CEDULA=
-INITIAL_ADMIN_EMAIL=
-INITIAL_ADMIN_PHONE=
-INITIAL_ADMIN_PASSWORD=
+```text
+roles(id, nombre UNIQUE, timestamps)
+user_has_rol(user_id, rol_id, timestamps, PRIMARY KEY(user_id, rol_id))
 ```
 
-No deben colocarse contraseñas en `.env.example`, documentación o Git. En producción deben inyectarse mediante secretos del entorno y rotarse después de la instalación. El seeder no cambia la contraseña de una cuenta existente.
+Los valores sembrados son `administrador`, `coordinador` y `estudiante`. La migración correctiva copia asignaciones históricas desde `model_has_roles`, normaliza nombres y elimina esa tabla para impedir dos fuentes de verdad.
 
-## Verificación realizada
+## Integridad y concurrencia
 
-- Todas las migraciones aparecen como `Ran` en `php artisan migrate:status`.
-- Las restricciones únicas de correo, cédula, roles y asignaciones están activas.
-- Las claves foráneas de SQLite están habilitadas.
-- La autenticación y el control de acceso se verifican mediante Feature Tests, sin crear tokens de prueba persistentes en la base local.
-- La suite ejecutó 86 pruebas y 508 aserciones correctamente usando SQLite en memoria.
+Las claves foráneas protegen propietarios y relaciones. Existen restricciones únicas para correo, cédula, roles, asignaciones de rol, Coordinador–Carrera, Estudiante–Coordinación, requisitos por solicitud, comparaciones, resultado, resolución y número de resolución. Los servicios bloquean la solicitud o documento antes de decisiones críticas; la base actúa como última barrera ante carreras concurrentes.
 
-## Producción y otros motores
+## Seeders
 
-SQLite facilita una instalación local sin servidor externo. Para producción se debe confirmar con el equipo de base de datos si se usará MySQL, MariaDB o PostgreSQL y ejecutar, como mínimo:
+Los seeders idempotentes crean roles, tipos de trámite/proceso, estados documentales, estados de solicitud y combinaciones habilitadas. El administrador inicial solo se crea con todas las variables `INITIAL_ADMIN_*`. Los datos de demostración se limitan a entornos local/testing.
 
-1. migraciones sobre una base vacía del mismo motor;
-2. suite de integración contra ese motor;
-3. pruebas de restauración desde backup;
-4. pruebas de concurrencia para creación de usuarios, roles y resoluciones;
-5. revisión de índices con datos representativos;
-6. verificación de permisos del directorio privado de archivos.
+## Archivos y respaldo
 
-No importar un dump `.sql` y ejecutar migraciones encima sin comparar previamente ambos esquemas. Si el equipo entrega un dump oficial, debe definirse si ese dump o las migraciones serán la fuente de verdad.
-
-## Correcciones y decisiones futuras
-
-### Esquema y nombres
-
-- La documentación funcional menciona `user_has_rol`, mientras Spatie usa `model_has_roles`. No deben coexistir ambas tablas. El equipo debe aprobar una única estrategia antes de una integración externa.
-- Los roles están almacenados como `Administrador`, `Coordinador` y `Estudiante`; se debe decidir si se conserva la distinción de mayúsculas o se normaliza mediante una migración coordinada.
-- `resoluciones_solicitud.coordinador_id` también guarda al Administrador que registra una resolución. Un nombre como `registrado_por_id` representaría mejor el dato, pero el cambio exige actualizar diccionario, migración, modelo y consumidores.
-- `solicitudes.carrera_id` conserva la carrera elegida al crear solicitudes nuevas. Las anteriores permanecen con valor nulo; no se adivinan asignaciones históricas. El filtro administrativo usa la carrera guardada y mantiene la derivación antigua solo para registros sin carrera.
-
-### Seguridad y operación
-
-- Eliminar o deshabilitar cuentas de demostración fuera de `local` y `testing`.
-- Añadir auditoría de altas, cambios de rol, activaciones, desactivaciones, asignaciones y resoluciones.
-- Incorporar análisis antivirus/antimalware para PDFs antes de conservarlos definitivamente.
-- Establecer retención, backup y restauración para base de datos y archivos privados como una sola unidad operativa.
-- Configurar expiración de tokens Sanctum según la política institucional.
-
-### Rendimiento y calidad
-
-- Medir listados y reportes con volúmenes reales antes de añadir índices especulativos.
-- Evaluar procesos asíncronos para futuras exportaciones PDF/Excel y notificaciones.
-- Ejecutar tests en CI con SQLite y con el motor elegido para producción.
-- Añadir monitoreo de errores, consultas lentas, almacenamiento y trabajos en cola.
-
-### Entorno PHP
-
-La máquina local muestra una advertencia al cargar `pgsql` por incompatibilidad binaria. Esto no afecta SQLite, pero debe corregirse a nivel del sistema reinstalando una versión de la extensión compatible con PHP o desactivándola si PostgreSQL no se utilizará. No se modifica desde este repositorio porque es configuración global compartida.
+La base guarda metadatos y rutas privadas; los binarios viven en `storage/app/private`. Un respaldo operativo debe incluir PostgreSQL y ese almacenamiento en un punto temporal coherente. Deben probarse restauraciones antes de producción.

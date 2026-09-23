@@ -45,13 +45,22 @@ class SolicitudResource extends JsonResource
                 'documento_requerido' => $document->documentoRequerido,
                 'estado' => $document->estadoDocumento,
                 'validez' => $document->validez,
+                'presentado' => $document->ruta_documento_oficio !== null,
+                'download_url' => $request->user()?->hasRole('coordinador') && $document->ruta_documento_oficio !== null
+                    ? route('coordinator.documents.download', $document->id, false)
+                    : null,
                 'observaciones' => $document->observaciones,
                 'verificaciones' => $document->verificaciones,
             ])),
             'historial_estados' => $this->whenLoaded('historialEstados', fn () => $this->resource->historialEstados->map(fn (HistorialEstadoSolicitud $history): array => [
                 'id' => $history->getKey(),
                 'estado' => $history->estadoSolicitud,
+                'etapa_origen' => $history->etapa_origen,
                 'observacion' => $history->observacion,
+                'usuario_responsable' => $history->relationLoaded('usuarioResponsable') && $history->usuarioResponsable !== null ? [
+                    'id' => $history->usuarioResponsable->id,
+                    'nombres_completos' => $history->usuarioResponsable->nombres_completos,
+                ] : null,
                 'created_at' => $history->created_at,
             ])),
             'oficios' => $this->whenLoaded('oficios', fn () => $this->resource->oficios->map(fn (OficioSolicitud $oficio): array => [
@@ -59,7 +68,8 @@ class SolicitudResource extends JsonResource
                 'numero_oficio' => $oficio->numero_oficio,
                 'fecha_oficio' => $oficio->fecha_oficio?->toDateString(),
             ])),
-            'resultado' => $this->whenLoaded('resultado'),
+            'comparaciones' => ComparisonResource::collection($this->whenLoaded('comparacionesAsignaturas')),
+            'resultado' => AnalysisResultResource::make($this->whenLoaded('resultado')),
             'resolucion' => ResolucionResource::make($this->whenLoaded('resolucion')),
             'created_at' => $this->resource->created_at,
             'updated_at' => $this->resource->updated_at,

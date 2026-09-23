@@ -27,7 +27,7 @@ class StoreResolutionRequest extends FormRequest
         return [
             'numero_resolucion' => ['required', 'string', 'max:100', Rule::unique('resoluciones_solicitud', 'numero_resolucion')],
             'fecha_aprobacion' => ['required', 'date'],
-            'archivo' => ['required', File::types(['pdf'])->max('10mb')],
+            'archivo' => ['required', File::types(['pdf'])->max(config('uploads.private_pdf_max_kb'))],
         ];
     }
 }

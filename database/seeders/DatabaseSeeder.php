@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
                 'numero_celular' => '0999999999',
                 'password' => 'password',
             ]);
-            $user->assignRole('Estudiante');
+            $user->assignRole('estudiante');
         }
 
         $this->call(AdminUserSeeder::class);

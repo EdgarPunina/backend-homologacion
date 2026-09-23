@@ -44,9 +44,9 @@ class HomologacionDomainTest extends TestCase
         $this->assertSame(4, EstadoDocumento::query()->count());
         $this->assertSame(8, EstadoSolicitud::query()->count());
         $this->assertSame(3, TramiteProceso::query()->count());
-        $this->assertDatabaseHas('roles', ['name' => 'Administrador']);
-        $this->assertDatabaseHas('roles', ['name' => 'Coordinador']);
-        $this->assertDatabaseHas('roles', ['name' => 'Estudiante']);
+        $this->assertDatabaseHas('roles', ['nombre' => 'administrador']);
+        $this->assertDatabaseHas('roles', ['nombre' => 'coordinador']);
+        $this->assertDatabaseHas('roles', ['nombre' => 'estudiante']);
     }
 
     public function test_initial_administrator_is_created_with_required_profile_and_role(): void

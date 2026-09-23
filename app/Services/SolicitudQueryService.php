@@ -11,9 +11,9 @@ class SolicitudQueryService
      * @param  array<string, mixed>  $filters
      * @return Builder<Solicitud>
      */
-    public function build(array $filters): Builder
+    public function build(array $filters, ?Builder $query = null): Builder
     {
-        return Solicitud::query()
+        return ($query ?? Solicitud::query())
             ->with([
                 'carrera',
                 'estudiante.roles',
@@ -63,11 +63,12 @@ class SolicitudQueryService
                     );
                 });
             })
-            ->when($filters['estudiante'] ?? null, function (Builder $query, string $student): void {
+            ->when($filters['estudiante'] ?? $filters['search'] ?? null, function (Builder $query, string $student): void {
                 $query->whereHas('estudiante', fn (Builder $studentQuery) => $studentQuery
-                    ->where('nombres_completos', 'like', "%{$student}%")
-                    ->orWhere('cedula', 'like', "%{$student}%")
-                    ->orWhere('email', 'like', "%{$student}%"));
+                    ->where(fn (Builder $searchQuery) => $searchQuery
+                        ->where('nombres_completos', 'like', "%{$student}%")
+                        ->orWhere('cedula', 'like', "%{$student}%")
+                        ->orWhere('email', 'like', "%{$student}%")));
             })
             ->when($filters['coordinador'] ?? null, function (Builder $query, string $coordinator): void {
                 $query->whereHas('coordinador', fn (Builder $coordinatorQuery) => $coordinatorQuery

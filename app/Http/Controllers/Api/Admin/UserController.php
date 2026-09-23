@@ -8,12 +8,12 @@ use App\Http\Requests\Api\Admin\UpdateAdminUserRequest;
 use App\Http\Requests\Api\Admin\UpdateUserStatusRequest;
 use App\Http\Requests\Api\Admin\UserIndexRequest;
 use App\Http\Resources\Api\UserResource;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {

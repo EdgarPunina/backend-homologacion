@@ -17,13 +17,14 @@ class ReportController extends Controller
         $filters = $request->validated();
         $baseQuery = $queryService->build($filters);
         $total = (clone $baseQuery)->count();
-        $byState = EstadoSolicitud::query()->orderBy('nombre')->get()->map(function (EstadoSolicitud $state) use ($baseQuery): array {
+        /** @var list<array{estado: string, total: int}> $byState */
+        $byState = [];
+        foreach (EstadoSolicitud::query()->orderBy('nombre')->get() as $state) {
             $count = (clone $baseQuery)
                 ->whereHas('ultimoHistorialEstado', fn (Builder $query) => $query->where('estado_solicitud_id', $state->getKey()))
                 ->count();
-
-            return ['estado' => $state->nombre, 'total' => $count];
-        })->values();
+            $byState[] = ['estado' => (string) $state->nombre, 'total' => (int) $count];
+        }
         $records = $baseQuery->paginate($filters['per_page'] ?? 50)->withQueryString();
 
         return response()->json([

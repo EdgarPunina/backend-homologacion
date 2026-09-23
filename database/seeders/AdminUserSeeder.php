@@ -28,6 +28,6 @@ class AdminUserSeeder extends Seeder
             'password' => $adminData['password'],
         ]);
 
-        $admin->assignRole('Administrador');
+        $admin->assignRole('administrador');
     }
 }

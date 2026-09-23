@@ -126,7 +126,7 @@ class CoordinatorCareerTest extends TestCase
             DB::transaction(fn () => $assignment->delete());
             $this->fail('La base de datos debe impedir eliminar una coordinación con estudiantes.');
         } catch (QueryException $exception) {
-            $this->assertStringContainsString('FOREIGN KEY', $exception->getMessage());
+            $this->assertStringContainsString('violates RESTRICT', $exception->getMessage());
         }
 
         $this->assertModelExists($assignment);

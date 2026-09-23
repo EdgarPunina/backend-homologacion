@@ -16,7 +16,7 @@ class StudentController extends Controller
     {
         $filters = $request->validated();
         $students = User::query()
-            ->role('Estudiante')
+            ->role('estudiante')
             ->with(['antecedentesAcademicos'])
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $query->where(function (Builder $searchQuery) use ($search): void {
@@ -35,7 +35,7 @@ class StudentController extends Controller
 
     public function show(User $student): JsonResponse
     {
-        if (! $student->hasRole('Estudiante')) {
+        if (! $student->hasRole('estudiante')) {
             return response()->json(['success' => false, 'message' => 'Estudiante no encontrado.'], 404);
         }
 

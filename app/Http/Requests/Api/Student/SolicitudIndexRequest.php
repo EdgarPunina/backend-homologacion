@@ -13,7 +13,7 @@ class SolicitudIndexRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('Estudiante') ?? false;
+        return $this->user()?->hasRole('estudiante') ?? false;
     }
 
     /**

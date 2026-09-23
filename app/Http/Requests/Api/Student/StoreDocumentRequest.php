@@ -13,7 +13,7 @@ class StoreDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('Estudiante') ?? false;
+        return $this->user()?->hasRole('estudiante') ?? false;
     }
 
     /**
@@ -24,7 +24,7 @@ class StoreDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo' => ['required', File::types(['pdf'])->max('10mb')],
+            'archivo' => ['required', File::types(['pdf'])->max(config('uploads.private_pdf_max_kb'))],
         ];
     }
 }

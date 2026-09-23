@@ -27,7 +27,7 @@ class UserIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'rol' => ['nullable', 'string', 'max:255', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+            'rol' => ['nullable', 'string', 'max:255', Rule::exists('roles', 'nombre')],
             'cuenta_activa' => ['nullable', 'boolean'],
             'order_by' => ['nullable', Rule::enum(UserSortField::class)],
             'direction' => ['nullable', Rule::enum(SortDirection::class)],

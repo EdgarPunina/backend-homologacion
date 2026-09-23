@@ -31,7 +31,7 @@ class StudentDemoSeeder extends Seeder
             'nombres_completos' => 'Coordinador de demostración', 'cedula' => 'DEMO-COORD',
             'numero_celular' => '0000000000', 'password' => Str::random(40),
         ]);
-        $coordinator->assignRole('Coordinador');
+        $coordinator->assignRole('coordinador');
         $career = Carrera::query()->firstOrCreate(['nombre' => '[DEMO] Ingeniería de Software']);
         $assignment = CoordinadorCarrera::query()->firstOrCreate(['coordinador_id' => $coordinator->id, 'carrera_id' => $career->id]);
         $student->carrerasComoEstudiante()->firstOrCreate(['coordinador_carrera_id' => $assignment->id]);

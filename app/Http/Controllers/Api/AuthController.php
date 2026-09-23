@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Carrera;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -24,7 +25,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::create($data);
-        $user->assignRole('Estudiante');
+        $user->assignRole('estudiante');
         $token = (string) $user->createToken('frontend')->plainTextToken;
 
         return response()->json([
@@ -76,13 +77,13 @@ class AuthController extends Controller
 
     public function roles(): JsonResponse
     {
-        return response()->json(['success' => true, 'roles' => Role::query()->pluck('name')]);
+        return response()->json(['success' => true, 'roles' => Role::query()->orderBy('nombre')->pluck('nombre')]);
     }
 
-    /** @return array{id: int, nombres_completos: string, cedula: ?string, email: string, numero_celular: ?string, cuenta_activa: bool, roles: list<string>} */
+    /** @return array{id: int, nombres_completos: string, cedula: ?string, email: string, numero_celular: ?string, cuenta_activa: bool, roles: list<string>, carreras_coordinadas?: list<array{id: int, nombre: string}>} */
     private function userData(User $user): array
     {
-        return [
+        $data = [
             'id' => $user->id,
             'nombres_completos' => $user->nombres_completos,
             'cedula' => $user->cedula,
@@ -91,5 +92,22 @@ class AuthController extends Controller
             'cuenta_activa' => $user->cuenta_activa,
             'roles' => $user->getRoleNames()->values()->all(),
         ];
+
+        if ($user->hasRole('coordinador')) {
+            $data['carreras_coordinadas'] = $this->coordinatedCareers($user);
+        }
+
+        return $data;
+    }
+
+    /** @return list<array{id: int, nombre: string}> */
+    private function coordinatedCareers(User $user): array
+    {
+        return $user->carrerasCoordinadas()
+            ->orderBy('nombre')
+            ->get(['carreras.id', 'carreras.nombre'])
+            ->map(fn (Carrera $career): array => ['id' => $career->id, 'nombre' => $career->nombre])
+            ->values()
+            ->all();
     }
 }

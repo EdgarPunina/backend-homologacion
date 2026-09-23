@@ -25,7 +25,11 @@ class ResolucionResource extends JsonResource
                 'id' => $this->resource->coordinador->getKey(),
                 'nombres_completos' => $this->resource->coordinador->nombres_completos,
             ],
-            'download_url' => route('admin.solicitudes.resolucion.download', $this->resource->solicitud_id, false),
+            'download_url' => route(
+                $request->user()?->hasRole('coordinador') ? 'coordinator.solicitudes.resolucion.download' : 'admin.solicitudes.resolucion.download',
+                $this->resource->solicitud_id,
+                false,
+            ),
             'created_at' => $this->resource->created_at,
         ];
     }

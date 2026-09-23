@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -29,10 +29,10 @@ class UserManagementTest extends TestCase
     public function test_administrator_creates_a_user_atomically_with_creator_role_and_hashed_password(): void
     {
         $admin = $this->authenticateAs('Administrador');
-        $role = Role::findByName('Coordinador', 'web');
+        $role = Role::query()->where('nombre', 'coordinador')->firstOrFail();
 
         $this->postJson('/api/v1/admin/users', $this->validPayload(['rol_id' => $role->id]))
-            ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('data.roles.0', 'Coordinador');
+            ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('data.roles.0', 'coordinador');
 
         $created = User::query()->where('email', 'nuevo@example.com')->firstOrFail();
         $this->assertSame($admin->id, $created->creador_id);
@@ -46,7 +46,7 @@ class UserManagementTest extends TestCase
     {
         $this->authenticateAs('Administrador');
         $existing = User::factory()->create(['cedula' => '0911111111', 'email' => 'existing@example.com']);
-        $role = Role::findByName('Estudiante', 'web');
+        $role = Role::query()->where('nombre', 'estudiante')->firstOrFail();
 
         $this->postJson('/api/v1/admin/users', $this->validPayload(['cedula' => $existing->cedula, 'rol_id' => $role->id]))
             ->assertUnprocessable()->assertJsonValidationErrors('cedula');
@@ -62,7 +62,7 @@ class UserManagementTest extends TestCase
         $student = User::factory()->create(['nombres_completos' => 'Persona Buscable', 'cuenta_activa' => false]);
         $student->assignRole('Estudiante');
 
-        $this->getJson('/api/v1/admin/users?search=Buscable&rol=Estudiante&cuenta_activa=0&per_page=1')
+        $this->getJson('/api/v1/admin/users?search=Buscable&rol=estudiante&cuenta_activa=0&per_page=1')
             ->assertOk()->assertJsonPath('data.0.id', $student->id)
             ->assertJsonPath('meta.per_page', 1)->assertJsonPath('meta.total', 1);
     }
@@ -78,11 +78,11 @@ class UserManagementTest extends TestCase
             ->assertOk()->assertJsonPath('data.nombres_completos', 'Nombre actualizado');
         $this->assertSame($originalPassword, $user->refresh()->password);
 
-        $coordinatorRole = Role::findByName('Coordinador', 'web');
+        $coordinatorRole = Role::query()->where('nombre', 'coordinador')->firstOrFail();
         $this->patchJson("/api/v1/admin/users/{$user->id}", [
             'password' => 'NewPassword123!',
             'rol_id' => $coordinatorRole->id,
-        ])->assertOk()->assertJsonPath('data.roles.0', 'Coordinador');
+        ])->assertOk()->assertJsonPath('data.roles.0', 'coordinador');
         $this->assertTrue(Hash::check('NewPassword123!', $user->refresh()->password));
     }
 
@@ -108,7 +108,7 @@ class UserManagementTest extends TestCase
 
         $this->patchJson("/api/v1/admin/users/{$admin->id}/status", ['cuenta_activa' => false])->assertStatus(409);
 
-        $studentRole = Role::findByName('Estudiante', 'web');
+        $studentRole = Role::query()->where('nombre', 'estudiante')->firstOrFail();
         $this->patchJson("/api/v1/admin/users/{$admin->id}", ['rol_id' => $studentRole->id])->assertStatus(409);
         $this->assertTrue($admin->refresh()->hasRole('Administrador'));
     }
@@ -123,14 +123,14 @@ class UserManagementTest extends TestCase
             ->assertJsonValidationErrors(['rol' => 'El rol seleccionado no existe.']);
     }
 
-    public function test_role_filter_rejects_a_role_from_another_guard(): void
+    public function test_role_filter_uses_the_custom_role_source_of_truth(): void
     {
         $this->authenticateAs('Administrador');
-        Role::query()->create(['name' => 'External', 'guard_name' => 'external']);
+        Role::query()->create(['nombre' => 'externo']);
 
-        $this->getJson('/api/v1/admin/users?rol=External')
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['rol' => 'El rol seleccionado no existe.']);
+        $this->getJson('/api/v1/admin/users?rol=externo')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
     }
 
     private function authenticateAs(string $role): User

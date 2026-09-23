@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+
     'initial_admin' => [
         'name' => env('INITIAL_ADMIN_NAME', 'Administrador inicial'),
         'cedula' => env('INITIAL_ADMIN_CEDULA'),

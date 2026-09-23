@@ -24,7 +24,7 @@ class CatalogController extends Controller
                 'coordinador_carrera_id' => $assignment->coordinador_carrera_id,
                 'carrera' => ['id' => $assignment->coordinadorCarrera->carrera->id, 'nombre' => $assignment->coordinadorCarrera->carrera->nombre],
                 'coordinador' => ['id' => $assignment->coordinadorCarrera->coordinador->id, 'nombres_completos' => $assignment->coordinadorCarrera->coordinador->nombres_completos],
-                'disponible' => (bool) ($assignment->coordinadorCarrera->coordinador->cuenta_activa && $assignment->coordinadorCarrera->coordinador->hasRole('Coordinador')),
+                'disponible' => (bool) ($assignment->coordinadorCarrera->coordinador->cuenta_activa && $assignment->coordinadorCarrera->coordinador->hasRole('coordinador')),
             ]),
         ]]);
     }

@@ -13,7 +13,7 @@ class CoordinatorCareerController extends Controller
 {
     public function index(User $coordinator): JsonResponse
     {
-        if (! $coordinator->hasRole('Coordinador')) {
+        if (! $coordinator->hasRole('coordinador')) {
             return response()->json(['success' => false, 'message' => 'El usuario no es Coordinador.'], 422);
         }
 
@@ -25,7 +25,7 @@ class CoordinatorCareerController extends Controller
 
     public function update(AssignCoordinatorCareersRequest $request, User $coordinator): JsonResponse
     {
-        if (! $coordinator->hasRole('Coordinador')) {
+        if (! $coordinator->hasRole('coordinador')) {
             return response()->json(['success' => false, 'message' => 'El usuario no es Coordinador.'], 422);
         }
 

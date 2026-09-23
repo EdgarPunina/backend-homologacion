@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['solicitud_id', 'coordinador_id', 'conclusion_general', 'total_creditos_reconocidos'])]
+#[Fillable(['solicitud_id', 'coordinador_id', 'conclusion_general', 'total_creditos_reconocidos', 'ruta_informe_tecnico', 'informe_generado_at'])]
 class ResultadoSolicitud extends Model
 {
     protected $table = 'resultados_solicitud';
@@ -26,6 +26,9 @@ class ResultadoSolicitud extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['total_creditos_reconocidos' => 'integer'];
+        return [
+            'total_creditos_reconocidos' => 'integer',
+            'informe_generado_at' => 'datetime',
+        ];
     }
 }

@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EstadoSolicitud;
+use App\Models\Role;
 use App\Models\Solicitud;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Spatie\Permission\Models\Role;
 
 class DashboardController extends Controller
 {
@@ -17,9 +17,9 @@ class DashboardController extends Controller
      */
     public function __invoke(): JsonResponse
     {
-        $roles = Role::query()->orderBy('name')->get()->map(fn (Role $role): array => [
-            'rol' => $role->name,
-            'total' => User::query()->role($role->name, $role->guard_name)->count(),
+        $roles = Role::query()->orderBy('nombre')->get()->map(fn (Role $role): array => [
+            'rol' => $role->nombre,
+            'total' => User::query()->role($role)->count(),
         ]);
         $states = EstadoSolicitud::query()->orderBy('nombre')->get()->map(fn (EstadoSolicitud $state): array => [
             'estado' => $state->nombre,

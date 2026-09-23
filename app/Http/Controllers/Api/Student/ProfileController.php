@@ -20,11 +20,6 @@ class ProfileController extends Controller
     {
         $student = $request->user();
         $student->fill($request->validated());
-
-        if ($student->isDirty('email')) {
-            $student->email_verified_at = null;
-        }
-
         $student->save();
 
         return response()->json([
