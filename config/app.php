@@ -54,6 +54,14 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'initial_admin' => [
+        'name' => env('INITIAL_ADMIN_NAME', 'Administrador inicial'),
+        'cedula' => env('INITIAL_ADMIN_CEDULA'),
+        'email' => env('INITIAL_ADMIN_EMAIL'),
+        'phone' => env('INITIAL_ADMIN_PHONE'),
+        'password' => env('INITIAL_ADMIN_PASSWORD'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

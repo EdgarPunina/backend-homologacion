@@ -1,9 +1,15 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountIsActive;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Exceptions\UnauthorizedException;
 use Spatie\Permission\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -14,10 +20,53 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['role' => RoleMiddleware::class]);
+        $middleware->alias([
+            'active' => EnsureAccountIsActive::class,
+            'role' => RoleMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => 'No autenticado.'], 401);
+            }
+        });
+
+        $exceptions->render(function (AuthorizationException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tiene permisos para realizar esta acción.',
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (UnauthorizedException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tiene permisos para realizar esta acción.',
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (ModelNotFoundException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => 'Recurso no encontrado.'], 404);
+            }
+        });
+
+        $exceptions->render(function (ValidationException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Los datos proporcionados no son válidos.',
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+        });
     })->create();

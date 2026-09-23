@@ -12,18 +12,20 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        $email = env('INITIAL_ADMIN_EMAIL');
-        $password = env('INITIAL_ADMIN_PASSWORD');
+        /** @var array{name: string, cedula: ?string, email: ?string, phone: ?string, password: ?string} $adminData */
+        $adminData = config('app.initial_admin');
 
-        if (! $email || ! $password) {
-            $this->command?->warn('Administrador inicial omitido: define INITIAL_ADMIN_EMAIL e INITIAL_ADMIN_PASSWORD.');
+        if (! $adminData['cedula'] || ! $adminData['email'] || ! $adminData['phone'] || ! $adminData['password']) {
+            $this->command?->warn('Administrador inicial omitido: completa las variables INITIAL_ADMIN_* requeridas.');
 
             return;
         }
 
-        $admin = User::firstOrCreate(['email' => $email], [
-            'name' => env('INITIAL_ADMIN_NAME', 'Administrador inicial'),
-            'password' => $password,
+        $admin = User::firstOrCreate(['email' => $adminData['email']], [
+            'nombres_completos' => $adminData['name'],
+            'cedula' => $adminData['cedula'],
+            'numero_celular' => $adminData['phone'],
+            'password' => $adminData['password'],
         ]);
 
         $admin->assignRole('Administrador');

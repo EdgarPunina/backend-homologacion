@@ -1,6 +1,6 @@
 # Convenciones de desarrollo
 
-Estas convenciones guían el desarrollo futuro. No implican que las capas, permisos o flujos descritos ya estén implementados. El estado actual se detalla en [arquitectura](arquitectura-backend.md).
+Estas convenciones guían el desarrollo del backend. El estado actual se detalla en [arquitectura](arquitectura-backend.md).
 
 ## Idioma y nombres
 
@@ -22,14 +22,14 @@ El idioma del dominio es español. Se conservan términos técnicos y sufijos de
 
 Usar Form Requests para validar entradas de operaciones funcionales y API Resources para representar sus respuestas. Mantener Controllers delgados. Usar Services solamente cuando exista lógica de negocio que centralizar; no crear uno por cada tabla. Models representan entidades y relaciones, y Policies concentran autorización.
 
-La ruta de salud usa una función y una respuesta JSON directa como excepción aceptada por su simplicidad. No necesita validación de entrada, Service ni Resource propio. Los formatos generales de respuesta de [API](api.md) siguen propuestos.
+La ruta de salud usa una función y una respuesta JSON directa como excepción aceptada por su simplicidad. No necesita validación de entrada, Service ni Resource propio. El contrato vigente está en [API](api.md).
 
 ## Pruebas
 
 - **Feature:** en `tests/Feature`, extender `Tests\TestCase` y verificar el comportamiento HTTP observable: estados, contratos JSON y, cuando existan, validaciones y permisos. Usar `assertExactJson` cuando el contrato exija igualdad completa, como en salud.
 - **Unit:** en `tests/Unit`, comprobar lógica aislada sin depender de HTTP ni de la base de datos; extender `PHPUnit\Framework\TestCase` cuando no se necesite la aplicación.
 - Nombrar clases con sufijo `Test` y métodos descriptivos `test_...`, siguiendo el estilo existente. Es una excepción a camelCase para identificar métodos de prueba con PHPUnit.
-- No introducir migraciones ni preparación de bases de datos en esta fase. Las pruebas de persistencia se definirán tras aprobar el esquema.
+- Usar migraciones incrementales para cambios nuevos y no reescribir migraciones ya aplicadas.
 
 Verificaciones mínimas antes de integrar cambios:
 

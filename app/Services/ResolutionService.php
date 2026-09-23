@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\ResolucionSolicitud;
+use App\Models\Solicitud;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
+
+class ResolutionService
+{
+    /** @param array{numero_resolucion: string, fecha_aprobacion: string, archivo: UploadedFile} $data */
+    public function create(Solicitud $solicitud, User $actor, array $data): ResolucionSolicitud
+    {
+        $path = $data['archivo']->store('resoluciones', 'local');
+
+        if (! is_string($path)) {
+            throw new RuntimeException('No fue posible almacenar el archivo de resolución.');
+        }
+
+        try {
+            return DB::transaction(fn (): ResolucionSolicitud => ResolucionSolicitud::query()->create([
+                'solicitud_id' => $solicitud->getKey(),
+                'coordinador_id' => $actor->getKey(),
+                'numero_resolucion' => $data['numero_resolucion'],
+                'fecha_aprobacion' => $data['fecha_aprobacion'],
+                'ruta_archivo' => $path,
+            ]));
+        } catch (Throwable $exception) {
+            Storage::disk('local')->delete($path);
+
+            throw $exception;
+        }
+    }
+}

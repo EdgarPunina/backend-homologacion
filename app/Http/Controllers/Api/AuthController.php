@@ -15,17 +15,22 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'nombres_completos' => ['required', 'string', 'max:255'],
+            'cedula' => ['required', 'string', 'max:20', 'unique:users,cedula'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'numero_celular' => ['required', 'string', 'max:20'],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
+            'password_confirmation' => ['required', 'string'],
         ]);
 
         $user = User::create($data);
         $user->assignRole('Estudiante');
+        $token = (string) $user->createToken('frontend')->plainTextToken;
 
         return response()->json([
+            'success' => true,
             'user' => $this->userData($user),
-            'token' => $user->createToken('frontend')->plainTextToken,
+            'token' => $token,
             'token_type' => 'Bearer',
         ], 201);
     }
@@ -40,40 +45,50 @@ class AuthController extends Controller
         $user = User::where('email', $data['email'])->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            return response()->json(['message' => 'Credenciales incorrectas.'], 401);
+            return response()->json(['success' => false, 'message' => 'Credenciales incorrectas.'], 401);
         }
 
+        if (! $user->cuenta_activa) {
+            return response()->json(['success' => false, 'message' => 'La cuenta se encuentra inactiva.'], 403);
+        }
+
+        $token = (string) $user->createToken('frontend')->plainTextToken;
+
         return response()->json([
+            'success' => true,
             'user' => $this->userData($user),
-            'token' => $user->createToken('frontend')->plainTextToken,
+            'token' => $token,
             'token_type' => 'Bearer',
         ]);
     }
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['user' => $this->userData($request->user())]);
+        return response()->json(['success' => true, 'user' => $this->userData($request->user())]);
     }
 
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Sesión cerrada.']);
+        return response()->json(['success' => true, 'message' => 'Sesión cerrada.']);
     }
 
     public function roles(): JsonResponse
     {
-        return response()->json(['roles' => Role::query()->pluck('name')]);
+        return response()->json(['success' => true, 'roles' => Role::query()->pluck('name')]);
     }
 
-    /** @return array{id: int, name: string, email: string, roles: list<string>} */
+    /** @return array{id: int, nombres_completos: string, cedula: ?string, email: string, numero_celular: ?string, cuenta_activa: bool, roles: list<string>} */
     private function userData(User $user): array
     {
         return [
             'id' => $user->id,
-            'name' => $user->name,
+            'nombres_completos' => $user->nombres_completos,
+            'cedula' => $user->cedula,
             'email' => $user->email,
+            'numero_celular' => $user->numero_celular,
+            'cuenta_activa' => $user->cuenta_activa,
             'roles' => $user->getRoleNames()->values()->all(),
         ];
     }
