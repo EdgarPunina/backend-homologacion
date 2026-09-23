@@ -8,10 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['estudiante_id', 'coordinador_id', 'tramite_proceso_id', 'procedencia_estudios'])]
+#[Fillable(['estudiante_id', 'coordinador_id', 'carrera_id', 'tramite_proceso_id', 'procedencia_estudios'])]
 class Solicitud extends Model
 {
     protected $table = 'solicitudes';
+
+    /** @return BelongsTo<Carrera, $this> */
+    public function carrera(): BelongsTo
+    {
+        return $this->belongsTo(Carrera::class);
+    }
 
     /** @return BelongsTo<User, $this> */
     public function estudiante(): BelongsTo

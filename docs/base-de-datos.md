@@ -26,7 +26,7 @@ php artisan migrate --seed
 php artisan migrate:status
 ```
 
-La inicialización fue comprobada con 12 migraciones y 37 tablas. Los datos iniciales esperados son:
+La inicialización actual tiene 15 migraciones y 38 tablas. Las migraciones adicionales protegen las asignaciones de estudiantes contra borrados en cascada, guardan la carrera de solicitudes nuevas y añaden las notificaciones. Los datos iniciales esperados son:
 
 | Catálogo | Cantidad |
 | --- | ---: |
@@ -58,9 +58,8 @@ No deben colocarse contraseñas en `.env.example`, documentación o Git. En prod
 - Todas las migraciones aparecen como `Ran` en `php artisan migrate:status`.
 - Las restricciones únicas de correo, cédula, roles y asignaciones están activas.
 - Las claves foráneas de SQLite están habilitadas.
-- El login real de un Administrador local produjo un token Sanctum válido.
-- La suite ejecutó 32 pruebas y 159 aserciones correctamente usando SQLite en memoria.
-- Los tokens creados durante la verificación manual fueron eliminados al finalizar.
+- La autenticación y el control de acceso se verifican mediante Feature Tests, sin crear tokens de prueba persistentes en la base local.
+- La suite ejecutó 86 pruebas y 508 aserciones correctamente usando SQLite en memoria.
 
 ## Producción y otros motores
 
@@ -82,7 +81,7 @@ No importar un dump `.sql` y ejecutar migraciones encima sin comparar previament
 - La documentación funcional menciona `user_has_rol`, mientras Spatie usa `model_has_roles`. No deben coexistir ambas tablas. El equipo debe aprobar una única estrategia antes de una integración externa.
 - Los roles están almacenados como `Administrador`, `Coordinador` y `Estudiante`; se debe decidir si se conserva la distinción de mayúsculas o se normaliza mediante una migración coordinada.
 - `resoluciones_solicitud.coordinador_id` también guarda al Administrador que registra una resolución. Un nombre como `registrado_por_id` representaría mejor el dato, pero el cambio exige actualizar diccionario, migración, modelo y consumidores.
-- `solicitudes` no tiene una FK directa de carrera. Hoy el filtro la deriva desde documentos requeridos o la asignación del estudiante. Debe decidirse si la carrera forma parte inmutable de la solicitud.
+- `solicitudes.carrera_id` conserva la carrera elegida al crear solicitudes nuevas. Las anteriores permanecen con valor nulo; no se adivinan asignaciones históricas. El filtro administrativo usa la carrera guardada y mantiene la derivación antigua solo para registros sin carrera.
 
 ### Seguridad y operación
 

@@ -113,6 +113,26 @@ class UserManagementTest extends TestCase
         $this->assertTrue($admin->refresh()->hasRole('Administrador'));
     }
 
+    public function test_unknown_role_filter_returns_422(): void
+    {
+        $this->authenticateAs('Administrador');
+
+        $this->getJson('/api/v1/admin/users?rol=Inexistente')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonValidationErrors(['rol' => 'El rol seleccionado no existe.']);
+    }
+
+    public function test_role_filter_rejects_a_role_from_another_guard(): void
+    {
+        $this->authenticateAs('Administrador');
+        Role::query()->create(['name' => 'External', 'guard_name' => 'external']);
+
+        $this->getJson('/api/v1/admin/users?rol=External')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['rol' => 'El rol seleccionado no existe.']);
+    }
+
     private function authenticateAs(string $role): User
     {
         $this->seed(RoleSeeder::class);

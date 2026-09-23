@@ -25,6 +25,7 @@ class SolicitudController extends Controller
     public function show(Solicitud $solicitud): JsonResponse
     {
         $solicitud->load([
+            'carrera',
             'estudiante.roles',
             'estudiante.antecedentesAcademicos',
             'coordinador.roles',

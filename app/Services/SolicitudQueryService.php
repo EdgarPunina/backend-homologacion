@@ -15,6 +15,7 @@ class SolicitudQueryService
     {
         return Solicitud::query()
             ->with([
+                'carrera',
                 'estudiante.roles',
                 'coordinador.roles',
                 'tramiteProceso.tipoTramite',
@@ -34,8 +35,14 @@ class SolicitudQueryService
             ->when($filters['carrera'] ?? null, function (Builder $query, int|string $carreraId): void {
                 $query->where(function (Builder $careerQuery) use ($carreraId): void {
                     $careerQuery
-                        ->whereHas('documentos.documentoRequerido', fn (Builder $builder) => $builder->where('carrera_id', $carreraId))
-                        ->orWhereHas('estudiante.carrerasComoEstudiante.coordinadorCarrera', fn (Builder $builder) => $builder->where('carrera_id', $carreraId));
+                        ->where('carrera_id', $carreraId)
+                        ->orWhere(function (Builder $legacyQuery) use ($carreraId): void {
+                            $legacyQuery->whereNull('carrera_id')->where(function (Builder $legacyCareerQuery) use ($carreraId): void {
+                                $legacyCareerQuery
+                                    ->whereHas('documentos.documentoRequerido', fn (Builder $builder) => $builder->where('carrera_id', $carreraId))
+                                    ->orWhereHas('estudiante.carrerasComoEstudiante.coordinadorCarrera', fn (Builder $builder) => $builder->where('carrera_id', $carreraId));
+                            });
+                        });
                 });
             })
             ->when($filters['tipo_tramite'] ?? null, function (Builder $query, string $tipoTramite): void {

@@ -58,7 +58,7 @@ El modelo relacional se administra de forma independiente y el backend utiliza s
 
 La implementación de roles usa las tablas estándar de Spatie (`roles` y `model_has_roles`). Su clave primaria compuesta impide roles duplicados. Esto difiere del nombre `user_has_rol` citado en documentación funcional y se conserva como decisión técnica existente; véase Deuda técnica.
 
-La base local fue verificada con 12 migraciones aplicadas y 37 tablas. Los seeders son idempotentes y crean 3 roles, 2 tipos de trámite, 3 tipos de proceso, 4 estados de documento, 8 estados de solicitud y 3 combinaciones trámite/proceso. La guía operativa completa se encuentra en [docs/base-de-datos.md](docs/base-de-datos.md).
+La base local tiene 15 migraciones y 38 tablas, incluida la tabla de notificaciones. Los seeders son idempotentes y crean 3 roles, 2 tipos de trámite, 3 tipos de proceso, 4 estados de documento, 8 estados de solicitud y 3 combinaciones trámite/proceso. La guía operativa completa se encuentra en [docs/base-de-datos.md](docs/base-de-datos.md).
 
 ## Roles y autorización
 
@@ -203,10 +203,10 @@ Los Feature Tests cubren autenticación, cuenta inactiva, autorización por role
 
 Verificación final realizada en esta entrega:
 
-- 32 pruebas aprobadas y 159 aserciones.
-- 22 rutas API registradas.
-- 12 migraciones aplicadas sobre la base SQLite local.
-- Login HTTP real del Administrador comprobado, con emisión de token Sanctum.
+- 86 pruebas aprobadas y 508 aserciones.
+- 39 rutas API registradas (17 de Estudiante).
+- 15 migraciones aplicadas sobre la base SQLite local.
+- Autenticación, aislamiento entre estudiantes, estados, archivos privados y notificaciones verificados con Feature Tests.
 - OpenAPI analizado por Scramble sin tipos desconocidos.
 
 ## Estado actual del backend
@@ -223,7 +223,7 @@ Verificación final realizada en esta entrega:
 - [x] Registro/descarga privada de resoluciones por Administrador.
 - [x] Reporte JSON y estadísticas administrativas.
 - [ ] Exportaciones PDF/Excel de reportes.
-- [ ] Módulo completo de Estudiante.
+- [x] Flujo backend de Estudiante: perfil, antecedentes, solicitudes, documentos, correcciones, seguimiento, avisos y resolución final.
 - [ ] Módulo completo de Coordinador.
 
 ## Historias de usuario
@@ -242,7 +242,17 @@ Verificación final realizada en esta entrega:
 
 ### Módulo Estudiante
 
-Pendientes HU-04, HU-05, HU-07, HU-08, HU-10, HU-18, HU-19 y HU-20: endpoints propios para perfil/antecedentes, creación de solicitudes, carga/corrección de documentos, seguimiento, notificaciones y descarga final autorizada.
+Implementado el flujo backend acordado: perfil y antecedentes propios, catálogo de asignaciones, creación de solicitudes pendientes, PDF privados, envío a revisión, correcciones de documentos observados, historial, notificaciones internas y descarga final cuando la solicitud está `listo`. Los 17 endpoints `/api/v1/student/*` requieren cuenta activa y rol Estudiante. Véase [el contrato de API](docs/api.md#estudiante-solicitudes-archivos-y-seguimiento).
+
+Para preparar una demostración local reproducible:
+
+```sh
+php artisan migrate --no-interaction
+php artisan db:seed --class=StudentDemoSeeder --no-interaction
+php artisan serve
+```
+
+Usar la cuenta local `test@example.com` / `password`, registrar antecedentes y consultar `/api/v1/student/catalogo`. El seeder añade una carrera, un coordinador y requisitos `[DEMO]` para probar el flujo; no representan normativa institucional y el seeder rechaza producción. No crea automáticamente una solicitud ni simula su aprobación. La revisión y los estados finales se implementarán en Coordinador.
 
 ### Módulo Coordinador
 
@@ -253,7 +263,7 @@ Pendientes HU-09 y HU-11 a HU-16: revisión documental, observaciones, estados, 
 - El documento funcional menciona `user_has_rol`, pero el repositorio ya usa `model_has_roles` de Spatie. Migrar el nombre requiere una decisión conjunta con el equipo de base de datos; no se creó una tabla paralela.
 - Los roles sembrados están en Title Case, aunque parte de la narrativa los escribe en minúsculas. La API conserva los valores existentes y distingue mayúsculas.
 - `resoluciones_solicitud.coordinador_id` es el único campo de autor disponible. Cuando registra un Administrador, ese campo guarda al actor administrador; convendría renombrarlo a `registrado_por_id` mediante una migración coordinada si el diccionario de datos lo permite.
-- La carrera de una solicitud no existe como FK directa. El filtro usa la carrera de documentos requeridos o la asignación académica del estudiante.
+- Las solicitudes nuevas guardan la carrera como FK. Para solicitudes anteriores con `carrera_id=null`, el filtro administrativo conserva la derivación desde documentos o asignaciones; no se deduce una carrera histórica ambigua durante la migración.
 - No se añadieron exportaciones PDF/Excel ni nuevas librerías porque los criterios no las hacen obligatorias.
 - SQLite es apropiado para desarrollo y pruebas, pero el motor de producción debe acordarse con el equipo de base de datos y probarse en CI antes del despliegue.
 - No editar migraciones que ya hayan sido ejecutadas en ambientes compartidos; toda corrección posterior debe hacerse mediante una migración nueva.

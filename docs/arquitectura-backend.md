@@ -23,4 +23,4 @@ Sanctum autentica tokens Bearer. Spatie resuelve roles mediante `roles` y `model
 
 ## Límites del módulo actual
 
-El Administrador gestiona usuarios, carreras de coordinadores, consultas, resoluciones y reportes JSON. Los casos de uso de Estudiante y Coordinador continúan separados y pendientes según el estado descrito en el README. La referencia contractual es [api.md](api.md).
+El Administrador gestiona usuarios, carreras de coordinadores, consultas, resoluciones y reportes JSON. Estudiante incluye perfil, antecedentes, solicitudes, documentos privados, correcciones, seguimiento, notificaciones internas y descarga final. Sus consultas parten siempre de relaciones del usuario autenticado. `StudentSolicitudService` y `StudentDocumentService` aplican estados y transacciones; los observers de historial, observaciones y resoluciones generan avisos en la misma base de datos. Coordinador sigue pendiente. La referencia contractual es [api.md](api.md).

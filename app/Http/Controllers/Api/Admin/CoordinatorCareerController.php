@@ -29,7 +29,27 @@ class CoordinatorCareerController extends Controller
             return response()->json(['success' => false, 'message' => 'El usuario no es Coordinador.'], 422);
         }
 
-        DB::transaction(fn () => $coordinator->carrerasCoordinadas()->sync($request->validated('carrera_ids')));
+        $updated = DB::transaction(function () use ($request, $coordinator): bool {
+            $careerIds = $request->validated('carrera_ids');
+            $assignments = $coordinator->coordinaciones()->lockForUpdate()->get();
+
+            foreach ($assignments as $assignment) {
+                if (! in_array($assignment->carrera_id, $careerIds) && $assignment->estudiantes()->exists()) {
+                    return false;
+                }
+            }
+
+            $coordinator->carrerasCoordinadas()->sync($careerIds);
+
+            return true;
+        });
+
+        if (! $updated) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puede retirar carreras con estudiantes asignados. Reasigne los estudiantes primero.',
+            ], 409);
+        }
 
         return response()->json([
             'success' => true,

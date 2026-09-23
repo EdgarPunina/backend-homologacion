@@ -27,11 +27,17 @@ class UserIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'rol' => ['nullable', 'string', 'max:255'],
+            'rol' => ['nullable', 'string', 'max:255', Rule::exists('roles', 'name')->where('guard_name', 'web')],
             'cuenta_activa' => ['nullable', 'boolean'],
             'order_by' => ['nullable', Rule::enum(UserSortField::class)],
             'direction' => ['nullable', Rule::enum(SortDirection::class)],
             'per_page' => ['nullable', 'integer', 'between:1,100'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['rol.exists' => 'El rol seleccionado no existe.'];
     }
 }

@@ -21,6 +21,7 @@ class SolicitudResource extends JsonResource
     {
         return [
             'id' => $this->resource->getKey(),
+            'carrera' => CareerResource::make($this->whenLoaded('carrera')),
             'procedencia_estudios' => $this->resource->procedencia_estudios,
             'estudiante' => $this->whenLoaded('estudiante', fn () => [
                 'id' => $this->resource->estudiante->getKey(),
