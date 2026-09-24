@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Coordinator;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Coordinator\StoreResolutionRequest;
 use App\Http\Resources\Api\ResolucionResource;
-use App\Models\ResolucionSolicitud;
 use App\Services\CoordinatorAccessService;
 use App\Services\ResolutionService;
 use App\Services\SolicitudWorkflowService;
@@ -31,7 +30,6 @@ class ResolutionController extends Controller
             $record,
             $request->user(),
             $request->validated(),
-            fn (ResolucionSolicitud $created) => $workflow->transition($record, 'listo', $request->user(), 'Resolución externa registrada: '.$created->numero_resolucion.'.'),
         )->load('coordinador');
 
         return response()->json(['success' => true, 'message' => 'Resolución registrada correctamente.', 'data' => ResolucionResource::make($resolution)], 201);

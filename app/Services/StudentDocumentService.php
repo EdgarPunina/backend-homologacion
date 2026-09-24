@@ -33,6 +33,7 @@ class StudentDocumentService
                     throw new RuntimeException('No fue posible almacenar el documento.');
                 }
                 $oldPath = $document->ruta_documento_oficio;
+                $document->verificaciones()->delete();
                 $document->update([
                     'ruta_documento_oficio' => $newPath,
                     'estado_documento_id' => EstadoDocumento::query()->where('nombre', 'presentado')->firstOrFail()->id,

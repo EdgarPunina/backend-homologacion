@@ -18,8 +18,9 @@ class CoordinatorDocumentService
     public function review(User $coordinator, int $id, string $state, ?string $observation): SolicitudDocumento
     {
         $document = DB::transaction(function () use ($coordinator, $id, $state, $observation): SolicitudDocumento {
-            $document = $this->access->document($coordinator, $id, true);
-            abort_unless($this->workflow->currentState($document->solicitud) === 'en_revision', 409, 'La solicitud no está en revisión.');
+            $document = $this->lockedDocument($coordinator, $id);
+            $current = $this->workflow->currentState($document->solicitud);
+            abort_unless(in_array($current, ['en_revision', 'observado'], true), 409, 'La solicitud no está en revisión documental.');
             abort_unless($document->ruta_documento_oficio !== null && Storage::disk('local')->exists($document->ruta_documento_oficio), 409, 'El documento aún no ha sido presentado o su archivo no está disponible.');
 
             $document->update([
@@ -28,16 +29,17 @@ class CoordinatorDocumentService
             ]);
 
             if ($state === 'observado') {
+                $document->verificaciones()->delete();
                 $document->observaciones()->create(['observacion' => $observation]);
-                $this->workflow->transition($document->solicitud, 'observado', $coordinator, 'Se observaron documentos de la solicitud.');
+                if ($current === 'en_revision') {
+                    $this->workflow->transition($document->solicitud, 'observado', $coordinator, 'Se observaron documentos de la solicitud.');
+                }
+            } else {
+                $this->workflow->advanceToProcessingWhenReady($document->solicitud, $coordinator);
             }
 
             return $document;
         });
-
-        if ($state === 'aprobado') {
-            $this->workflow->advanceToProcessingWhenReady($document->solicitud, $coordinator);
-        }
 
         return $document->load(['documentoRequerido', 'estadoDocumento', 'observaciones', 'verificaciones.coordinador']);
     }
@@ -45,20 +47,30 @@ class CoordinatorDocumentService
     public function verify(User $coordinator, int $id, bool $approved): SolicitudDocumento
     {
         $document = DB::transaction(function () use ($coordinator, $id, $approved): SolicitudDocumento {
-            $document = $this->access->document($coordinator, $id, true);
-            abort_unless($this->workflow->currentState($document->solicitud) === 'en_revision', 409, 'La solicitud no está en revisión.');
+            $document = $this->lockedDocument($coordinator, $id);
+            abort_unless(in_array($this->workflow->currentState($document->solicitud), ['en_revision', 'observado'], true), 409, 'La solicitud no está en revisión documental.');
+            abort_unless(in_array($document->estadoDocumento->nombre, ['presentado', 'aprobado'], true)
+                && $document->ruta_documento_oficio !== null
+                && Storage::disk('local')->exists($document->ruta_documento_oficio), 409, 'Debe presentarse un archivo válido antes de verificarlo.');
             $document->verificaciones()->updateOrCreate(
                 ['coordinador_id' => $coordinator->id],
                 ['estado' => $approved],
             );
+            if ($approved) {
+                $this->workflow->advanceToProcessingWhenReady($document->solicitud, $coordinator);
+            }
 
             return $document;
         });
 
-        if ($approved) {
-            $this->workflow->advanceToProcessingWhenReady($document->solicitud, $coordinator);
-        }
-
         return $document->load(['documentoRequerido', 'estadoDocumento', 'observaciones', 'verificaciones.coordinador']);
+    }
+
+    private function lockedDocument(User $coordinator, int $id): SolicitudDocumento
+    {
+        $document = $this->access->document($coordinator, $id);
+        $solicitud = $this->access->solicitud($coordinator, $document->solicitud_id, true);
+
+        return $solicitud->documentos()->lockForUpdate()->findOrFail($id)->setRelation('solicitud', $solicitud);
     }
 }

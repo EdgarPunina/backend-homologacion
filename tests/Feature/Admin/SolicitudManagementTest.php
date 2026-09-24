@@ -47,7 +47,7 @@ class SolicitudManagementTest extends TestCase
     {
         Storage::fake('local');
         $admin = $this->authenticateAdministrator();
-        $solicitud = $this->createSolicitud('aprobado', 'Con Resolución');
+        $solicitud = $this->createSolicitud('en_consejo', 'Con Resolución');
         $pdf = UploadedFile::fake()->createWithContent('resolucion.pdf', "%PDF-1.4\ncontenido");
 
         $this->post("/api/v1/admin/solicitudes/{$solicitud->id}/resolucion", [
@@ -61,6 +61,8 @@ class SolicitudManagementTest extends TestCase
 
         $resolution = ResolucionSolicitud::query()->firstOrFail();
         $this->assertSame($admin->id, $resolution->coordinador_id);
+        $this->assertSame('listo', $solicitud->fresh()->ultimoHistorialEstado->estadoSolicitud->nombre);
+        $this->assertSame($admin->id, $solicitud->fresh()->ultimoHistorialEstado->usuario_responsable_id);
         Storage::disk('local')->assertExists($resolution->ruta_archivo);
 
         $this->get("/api/v1/admin/solicitudes/{$solicitud->id}/resolucion/download", ['Accept' => 'application/json'])
@@ -93,6 +95,22 @@ class SolicitudManagementTest extends TestCase
             'fecha_aprobacion' => '2026-09-22',
             'archivo' => UploadedFile::fake()->create('archivo.txt', 10, 'text/plain'),
         ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('archivo');
+    }
+
+    public function test_returns_409_and_keeps_storage_empty_when_resolution_is_uploaded_before_council(): void
+    {
+        Storage::fake('local');
+        $this->authenticateAdministrator();
+        $solicitud = $this->createSolicitud('pendiente', 'Todavía pendiente');
+
+        $this->post('/api/v1/admin/solicitudes/'.$solicitud->id.'/resolucion', [
+            'numero_resolucion' => 'RES-PREMATURA', 'fecha_aprobacion' => '2026-09-23',
+            'archivo' => UploadedFile::fake()->createWithContent('resolucion.pdf', "%PDF-1.4\ncontenido"),
+        ], ['Accept' => 'application/json'])->assertStatus(409);
+
+        $this->assertDatabaseMissing('resoluciones_solicitud', ['solicitud_id' => $solicitud->id]);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        $this->assertSame('pendiente', $solicitud->fresh()->ultimoHistorialEstado->estadoSolicitud->nombre);
     }
 
     public function test_non_administrator_cannot_register_or_download_resolution(): void

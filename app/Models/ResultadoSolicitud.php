@@ -5,7 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/** @property Carbon|null $informe_generado_at */
 #[Fillable(['solicitud_id', 'coordinador_id', 'conclusion_general', 'total_creditos_reconocidos', 'ruta_informe_tecnico', 'informe_generado_at'])]
 class ResultadoSolicitud extends Model
 {

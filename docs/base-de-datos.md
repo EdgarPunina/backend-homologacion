@@ -7,11 +7,13 @@ PostgreSQL es el motor definitivo. `.env.example` contiene la plantilla de conex
 ```sh
 createdb backend_homologacion
 createdb backend_homologacion_test
-php artisan migrate:fresh --seed
+php artisan migrate --seed
 php artisan migrate:status
 ```
 
 Nunca ejecutes `migrate:fresh` sobre una base compartida o productiva. Las credenciales reales solo pertenecen a `.env` o al gestor de secretos; no deben versionarse.
+
+Los comandos `createdb` requieren acceso administrativo y deben usar el host/usuario apropiados para cada equipo. Ambas bases deben pertenecer al usuario de conexión configurado. El servidor local puede ser PostgreSQL 17 (verificado); no es necesario instalar PostgreSQL 18 para esta entrega. Las pruebas heredan host, puerto y credenciales del entorno, pero fuerzan la base `backend_homologacion_test`. Ejecutar `php artisan config:clear` antes de pruebas si existía configuración cacheada.
 
 ## Roles
 

@@ -1,5 +1,9 @@
 # Sistema de Reconocimiento y Homologación — Backend
 
+Para el equipo de Frontend: [guía de integración](docs/guia-frontend.md) y [contrato completo de endpoints](docs/api.md). Incluyen autenticación, ejemplos, preparación de cuentas y comportamiento del flujo corregido.
+
+Para importar las peticiones en herramientas compatibles: [contrato OpenAPI JSON](docs/openapi.json).
+
 API REST desacoplada para el flujo institucional de reconocimiento y homologación:
 
 ```text
@@ -11,14 +15,14 @@ Laravel concentra autenticación, autorización, reglas de negocio, auditoría, 
 ## Requisitos e instalación
 
 - PHP 8.3 o superior con `pdo_pgsql` y `pgsql`.
-- PostgreSQL 18 o una versión compatible soportada por Laravel.
+- PostgreSQL (verificado localmente con 17.10).
 - Composer.
 
 ```sh
 composer install --no-interaction --prefer-dist
 cp .env.example .env
 php artisan key:generate
-php artisan migrate:fresh --seed
+php artisan migrate --seed
 php artisan serve
 ```
 
@@ -39,6 +43,10 @@ STUDENT_MAIL_NOTIFICATIONS=false
 `FRONTEND_URL` puede contener orígenes separados por coma. CORS nunca usa `*` como origen. Los PDF se validan por MIME y tamaño configurable y se guardan en `storage/app/private`; solo se descargan mediante endpoints autorizados.
 
 El administrador inicial se crea únicamente cuando `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_CEDULA`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PHONE` e `INITIAL_ADMIN_PASSWORD` están completos. No existen credenciales administrativas predeterminadas.
+
+Para crear ese administrador después de configurar las variables, ejecutar `php artisan db:seed --class=AdminUserSeeder`. El seeder no cambia la contraseña de una cuenta ya existente. Para datos exclusivamente de prueba, `php artisan db:seed --class=StudentDemoSeeder` prepara un estudiante, carrera, asignación y requisitos; no sustituye catálogos institucionales. Ver [guía para Frontend](docs/guia-frontend.md).
+
+Al actualizar: conservar `.env` y `APP_KEY`, ejecutar `composer install`, `php artisan migrate` y `php artisan config:clear`. `migrate:fresh` borra las tablas y no forma parte del procedimiento de actualización.
 
 ## Seguridad y roles
 
@@ -86,7 +94,7 @@ Cada transición comprueba sus precondiciones. El rechazo exige motivo y registr
 
 ## API
 
-La base es `/api/v1`. Autenticación pública: `POST /register` y `POST /login`; sesión: `GET /me` y `POST /logout`. Los módulos usan los prefijos `/admin`, `/student` y `/coordinator`.
+La base es `/api/v1`. Inicio de sesión: `POST /login`; sesión: `GET /me` y `POST /logout`. El Administrador crea las cuentas; `POST /register` está deshabilitado y devuelve 403. Los módulos usan los prefijos `/admin`, `/student` y `/coordinator`.
 
 Enviar siempre `Accept: application/json` y `Authorization: Bearer {token}` en rutas protegidas. Los códigos relevantes son 201, 401, 403, 404, 409 y 422. Los listados paginados incluyen `data`, `links` y `meta`. El contrato completo está en [docs/api.md](docs/api.md).
 
@@ -119,7 +127,7 @@ Enviar siempre `Accept: application/json` y `Authorization: Bearer {token}` en r
 
 ## Verificación
 
-Las pruebas usan obligatoriamente `backend_homologacion_test` en PostgreSQL, nunca SQLite:
+Las pruebas usan obligatoriamente `backend_homologacion_test` en PostgreSQL, separada de la base de desarrollo. Crear esa base con el usuario configurado como propietario antes de ejecutar la suite. Host, puerto, usuario y contraseña se leen de `.env` (o `.env.testing` si se utiliza); `phpunit.xml` fija el nombre de la base de pruebas y vacía `DB_URL` para evitar usar accidentalmente la base de trabajo. No contiene credenciales de una computadora particular.
 
 ```sh
 php artisan test --compact
@@ -139,4 +147,4 @@ La suite cubre contratos HTTP, roles, aislamiento, archivos, transiciones válid
 - Los reportes se entregan en JSON. No se añadió exportación Excel porque no es necesaria para cerrar el flujo funcional.
 - El correo es opcional y encolado (`STUDENT_MAIL_NOTIFICATIONS=false` por defecto), por lo que SMTP no bloquea la transacción principal.
 - Antes de producción deben configurarse colas, respaldo/restauración, antivirus de archivos, secretos externos, HTTPS y observabilidad.
-- En la estación auditada se sustituyó `libpq5` de pgAdmin por `libpq` oficial de Fedora. `pdo_pgsql` y `pgsql` cargan correctamente y la suite completa corre sobre PostgreSQL sin warnings de extensión. Esta reparación retiró pgAdmin 4 Desktop/Server, pero conservó el servidor y las bases PostgreSQL.
+- El informe técnico admite varias páginas y caracteres españoles con la fuente estándar Courier/WinAnsi. No incorpora firma digital ni generación automática de la resolución externa: el PDF de resolución se carga desde el documento emitido por Consejo.

@@ -19,7 +19,7 @@ class ApiAuthenticationTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
-    public function test_registration_assigns_only_student_role_and_issues_token(): void
+    public function test_public_registration_rejects_valid_payload_without_creating_a_user_or_token(): void
     {
         $response = $this->postJson('/api/v1/register', [
             'nombres_completos' => 'Ana Pérez',
@@ -31,13 +31,9 @@ class ApiAuthenticationTest extends TestCase
             'role' => 'Administrador',
         ]);
 
-        $response->assertCreated()
-            ->assertJsonPath('user.nombres_completos', 'Ana Pérez')
-            ->assertJsonPath('user.cedula', '0912345678')
-            ->assertJsonPath('user.numero_celular', '0991234567')
-            ->assertJsonPath('user.roles.0', 'estudiante')
-            ->assertJsonStructure(['token']);
-        $this->assertFalse(User::whereEmail('ana@example.com')->firstOrFail()->hasRole('Administrador'));
+        $response->assertForbidden()->assertJsonPath('success', false);
+        $this->assertDatabaseMissing('users', ['email' => 'ana@example.com']);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
     public function test_login_me_and_logout_revoke_only_current_token(): void
@@ -72,16 +68,18 @@ class ApiAuthenticationTest extends TestCase
         $admin->assignRole('Administrador');
         Auth::forgetGuards();
         $this->withToken($admin->createToken('test')->plainTextToken)
-            ->getJson('/api/v1/roles')->assertOk()->assertJsonFragment(['administrador']);
+            ->getJson('/api/v1/roles')->assertOk()->assertJsonFragment(['administrador'])
+            ->assertJsonFragment(['id' => $admin->roles()->firstOrFail()->id, 'nombre' => 'administrador']);
     }
 
-    public function test_registration_validates_input(): void
+    public function test_public_registration_does_not_validate_or_accept_incomplete_input(): void
     {
         $this->postJson('/api/v1/register', [
             'nombres_completos' => 'Ana',
             'email' => 'invalid',
             'password' => 'short',
-        ])->assertUnprocessable()->assertJsonValidationErrors(['cedula', 'email', 'numero_celular', 'password']);
+        ])->assertForbidden()->assertJsonPath('message', 'El registro público no está habilitado. Solicite su cuenta al Administrador.');
+        $this->assertDatabaseCount('users', 0);
     }
 
     public function test_login_returns_403_when_account_is_inactive(): void

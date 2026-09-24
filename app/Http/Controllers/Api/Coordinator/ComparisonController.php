@@ -11,6 +11,7 @@ use App\Services\CoordinatorAccessService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ComparisonController extends Controller
 {
@@ -51,9 +52,12 @@ class ComparisonController extends Controller
      */
     public function destroy(Request $request, int $comparacion, CoordinatorAccessService $access, SolicitudWorkflowService $workflow): JsonResponse
     {
-        $comparison = $access->comparison($request->user(), $comparacion);
-        abort_unless($workflow->currentState($comparison->solicitud) === 'en_proceso', 409, 'La comparación ya no puede eliminarse.');
-        $comparison->delete();
+        DB::transaction(function () use ($request, $comparacion, $access, $workflow): void {
+            $comparison = $access->comparison($request->user(), $comparacion);
+            $solicitud = $access->solicitud($request->user(), $comparison->solicitud_id, true);
+            abort_unless($workflow->currentState($solicitud) === 'en_proceso', 409, 'La comparación ya no puede eliminarse.');
+            $comparison->delete();
+        });
 
         return response()->json(['success' => true, 'message' => 'Comparación eliminada correctamente.']);
     }

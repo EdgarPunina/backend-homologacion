@@ -16,7 +16,7 @@ class WorkflowResolutionTest extends CoordinatorWorkflowTestCase
 
         $this->postJson('/api/v1/coordinator/solicitudes/'.$context['solicitud']->id.'/state', [
             'estado' => 'listo',
-        ])->assertStatus(409);
+        ])->assertStatus(409)->assertJsonPath('success', false);
 
         $this->assertSame($count, $context['solicitud']->historialEstados()->count());
         $this->assertSame('pendiente', $context['solicitud']->fresh()->ultimoHistorialEstado->estadoSolicitud->nombre);

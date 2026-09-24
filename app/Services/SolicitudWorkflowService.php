@@ -56,6 +56,8 @@ class SolicitudWorkflowService
         return $documents->isNotEmpty() && $documents->every(function (SolicitudDocumento $document): bool {
             return $document->estadoDocumento->nombre === 'aprobado'
                 && $document->validez
+                && $document->ruta_documento_oficio !== null
+                && Storage::disk('local')->exists($document->ruta_documento_oficio)
                 && $document->verificaciones->isNotEmpty()
                 && $document->verificaciones->every(fn ($verification): bool => $verification->estado);
         });

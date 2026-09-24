@@ -9,31 +9,15 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function register(): JsonResponse
     {
-        $data = $request->validate([
-            'nombres_completos' => ['required', 'string', 'max:255'],
-            'cedula' => ['required', 'string', 'max:20', 'unique:users,cedula'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'numero_celular' => ['required', 'string', 'max:20'],
-            'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'password_confirmation' => ['required', 'string'],
-        ]);
-
-        $user = User::create($data);
-        $user->assignRole('estudiante');
-        $token = (string) $user->createToken('frontend')->plainTextToken;
-
         return response()->json([
-            'success' => true,
-            'user' => $this->userData($user),
-            'token' => $token,
-            'token_type' => 'Bearer',
-        ], 201);
+            'success' => false,
+            'message' => 'El registro público no está habilitado. Solicite su cuenta al Administrador.',
+        ], 403);
     }
 
     public function login(Request $request): JsonResponse
@@ -77,7 +61,9 @@ class AuthController extends Controller
 
     public function roles(): JsonResponse
     {
-        return response()->json(['success' => true, 'roles' => Role::query()->orderBy('nombre')->pluck('nombre')]);
+        $roles = Role::query()->orderBy('nombre')->get(['id', 'nombre']);
+
+        return response()->json(['success' => true, 'roles' => $roles->pluck('nombre'), 'data' => $roles]);
     }
 
     /** @return array{id: int, nombres_completos: string, cedula: ?string, email: string, numero_celular: ?string, cuenta_activa: bool, roles: list<string>, carreras_coordinadas?: list<array{id: int, nombre: string}>} */

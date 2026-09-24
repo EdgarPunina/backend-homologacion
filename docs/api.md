@@ -1,12 +1,14 @@
 # Contrato de la API REST
 
+Para comenzar la integración, consultar la [guía para Frontend](guia-frontend.md), con ejemplos de conexión, orden de integración y comportamiento del flujo corregido.
+
 Base: `/api/v1`. Los clientes deben enviar `Accept: application/json`. Las rutas protegidas requieren `Authorization: Bearer {token}`. Los cuerpos normales usan `Content-Type: application/json`; la carga de resoluciones usa `multipart/form-data`.
 
 ## Respuestas y errores
 
 Las respuestas exitosas incluyen `success: true`. Los listados paginados usan la estructura de Laravel: `data`, `links` y `meta` (`current_page`, `last_page`, `per_page`, `total`). `per_page` admite de 1 a 100 y vale 15 por defecto, salvo el reporte, cuyo valor por defecto es 50.
 
-Los errores de API tienen `success: false` y `message`. Los errores 422 añaden `errors` por campo.
+Los errores de validación y de flujo (4xx) tienen `success: false` y `message`. Los errores 422 de validación de campos añaden `errors`; una precondición de negocio puede devolver solo `message`. Un error interno 500 debe tratarse de forma general sin depender de campos adicionales.
 
 | Código | Significado |
 | --- | --- |
@@ -23,13 +25,15 @@ Los errores de API tienen `success: false` y `message`. Los errores 422 añaden 
 
 | Método | Endpoint | Acceso | Entrada |
 | --- | --- | --- | --- |
-| POST | `/register` | Público, limitado | `nombres_completos`, `cedula`, `email`, `numero_celular`, `password`, `password_confirmation` |
+| POST | `/register` | Deshabilitado | Devuelve 403; no crea cuentas ni tokens. |
 | POST | `/login` | Público, limitado | `email`, `password` |
 | GET | `/me` | Cualquier cuenta activa | — |
 | POST | `/logout` | Cualquier cuenta activa | — |
 | GET | `/roles` | Administrador | — |
 
-El registro público siempre asigna `estudiante`; cualquier rol enviado por el cliente se ignora. Los valores API son `administrador`, `coordinador` y `estudiante`. Login y registro están limitados a 10 solicitudes por minuto. Login devuelve `user`, `token` y `token_type: Bearer`. Logout revoca solo el token actual. Una cuenta inactiva no puede iniciar sesión ni reutilizar un token previo.
+Las cuentas las crea el Administrador mediante `/admin/users`. Los valores API son `administrador`, `coordinador` y `estudiante`. Login está limitado a 10 solicitudes por minuto. Login devuelve `user`, `token` y `token_type: Bearer`. Logout revoca solo el token actual. Una cuenta inactiva no puede iniciar sesión ni reutilizar un token previo.
+
+`GET /roles` devuelve `{ "success": true, "roles": ["administrador", "coordinador", "estudiante"], "data": [{ "id": 1, "nombre": "administrador" }] }`, con un elemento en `data` por cada rol existente (el ejemplo abrevia la lista). Los IDs dependen de la base; utilizar el catálogo y no constantes para `rol_id`.
 
 ```json
 {
@@ -144,7 +148,7 @@ El detalle contiene, si existen: estudiante, coordinador, trámite/proceso, proc
 | POST | `/admin/solicitudes/{id}/resolucion` | Registra metadatos y almacena un PDF privado. |
 | GET | `/admin/solicitudes/{id}/resolucion/download` | Descarga autorizada del PDF. |
 
-La carga usa `multipart/form-data` con `numero_resolucion` único (máximo 100 caracteres), `fecha_aprobacion` y `archivo` PDF. El límite se configura con `MAX_PRIVATE_PDF_SIZE_KB` (10 MB por defecto). Solo se admite una resolución por solicitud. La ruta interna nunca se devuelve; la respuesta incluye `download_url`.
+La carga usa `multipart/form-data` con `numero_resolucion` único (máximo 100 caracteres), `fecha_aprobacion` y `archivo` PDF. El límite se configura con `MAX_PRIVATE_PDF_SIZE_KB` (10 MB por defecto). Solo se admite una resolución por solicitud, en estado `en_consejo`. Tanto Administrador como Coordinador finalizan la solicitud en `listo` al registrarla. Un estado incompatible devuelve 409 sin conservar el archivo cargado. La ruta interna nunca se devuelve; la respuesta incluye `download_url`.
 
 ## Reportes y estadísticas
 
@@ -153,7 +157,7 @@ La carga usa `multipart/form-data` con `numero_resolucion` único (máximo 100 c
 | GET | `/admin/reports/solicitudes` | Aplica los mismos filtros de solicitudes y devuelve filtros aplicados, total, agregados por estado, registros y paginación. |
 | GET | `/admin/dashboard` | Totales de usuarios, usuarios por rol, activos/inactivos, solicitudes y solicitudes por estado. |
 
-No se instalaron dependencias de PDF/Excel ni se añadieron exportaciones porque no son requisito confirmado. El dashboard solo entrega datos JSON; no incluye interfaz.
+Los reportes administrativos y el dashboard entregan JSON; no incluyen interfaz ni exportación Excel. El informe técnico del Coordinador sí se genera como PDF paginado, sin dependencias adicionales.
 
 ## Estudiante: solicitudes, archivos y seguimiento
 
@@ -250,7 +254,7 @@ Las búsquedas de estudiantes consideran nombres, cédula y correo. El detalle n
 }
 ```
 
-Observar crea un registro histórico en `observaciones_documentacion`, cambia la solicitud a `observado` y notifica al Estudiante. Su reemplazo conserva observaciones, vuelve el documento a `presentado` y permite reenviar la solicitud a `en_revision`. Aprobar establece `validez=true`. Cuando todos los documentos están aprobados y todas sus verificaciones registradas son positivas, la solicitud pasa a `en_proceso`.
+Observar crea un registro histórico en `observaciones_documentacion`, cambia la solicitud a `observado` y notifica al Estudiante. Se permite continuar revisando otros documentos en `observado` sin duplicar esa transición. Observar o reemplazar un archivo elimina sus verificaciones vigentes; el reemplazo conserva observaciones y vuelve el documento a `presentado` con `validez=false`. Verificar exige un archivo existente en estado `presentado` o `aprobado`. El estudiante reenvía la solicitud a `en_revision`; solo desde esa etapa, con todos los archivos presentes, aprobados y con al menos una verificación por documento y todas positivas, se avanza a `en_proceso`.
 
 ### Mallas, asignaturas y sílabos
 
@@ -285,6 +289,8 @@ Los ciclos admitidos son `primero` a `decimo`. `hr_carga_horaria` existe en la m
 | GET | `/coordinator/solicitudes/{id}/technical-report` | — | 200 `application/pdf` | 404 ajena/informe ausente |
 
 La asignatura origen debe pertenecer a una malla `origen` del Estudiante de la solicitud. La de destino debe pertenecer a una malla `institucional` de la carrera exacta de la solicitud. El resultado es único por solicitud y usa siempre el Coordinador autenticado. `total`/`parcial` cambia a `aprobado`; `rechazada` cambia a `rechazado`.
+
+El informe se genera en `aprobado`, distribuye el texto en tantas páginas como sean necesarias y conserva acentos y ñ. Si ya existe, repetir el POST devuelve sus metadatos (201) sin sobrescribirlo ni alterar la fecha original. Si el archivo se pierde después de pasar a Consejo, generar otro devuelve 409: debe restaurarse desde respaldo. La descarga devuelve 404 si el archivo no existe. Porcentaje y créditos son evaluaciones ingresadas por el Coordinador; no se aplica un umbral automático institucional.
 
 ### Estados y resolución
 

@@ -27,8 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (HttpException $exception, Request $request) {
-            if ($request->is('api/*') && $exception->getStatusCode() === 409) {
-                return response()->json(['success' => false, 'message' => $exception->getMessage()], 409);
+            $status = $exception->getStatusCode();
+            if ($request->is('api/*') && $status >= 400 && $status < 500) {
+                $message = $status === 404 ? 'Recurso no encontrado.' : ($exception->getMessage() ?: 'No se pudo completar la petición.');
+
+                return response()->json(['success' => false, 'message' => $message], $status, $exception->getHeaders());
             }
         });
         $exceptions->shouldRenderJsonWhen(
