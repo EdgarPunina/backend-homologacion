@@ -23,10 +23,20 @@ class StoreComparisonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'asignatura_origen_id' => ['required', 'integer', 'exists:asignaturas_creditos,id'],
-            'asignatura_destino_id' => ['required', 'integer', 'different:asignatura_origen_id', 'exists:asignaturas_creditos,id'],
-            'porcentaje_coincidencia' => ['required', 'numeric', 'between:0,100'],
+            'asignatura_origen_id' => ['required', 'integer', 'min:1', 'exists:asignaturas_creditos,id'],
+            'asignatura_destino_id' => ['required', 'integer', 'min:1', 'different:asignatura_origen_id', 'exists:asignaturas_creditos,id'],
+            'porcentaje_coincidencia' => ['required', 'numeric', 'between:0,100', 'decimal:0,2'],
             'observacion' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'porcentaje_coincidencia.decimal' => 'El porcentaje de coincidencia debe tener como máximo 2 decimales.',
+            'asignatura_origen_id.min' => 'La asignatura de origen debe tener un identificador positivo.',
+            'asignatura_destino_id.min' => 'La asignatura de destino debe tener un identificador positivo.',
         ];
     }
 }

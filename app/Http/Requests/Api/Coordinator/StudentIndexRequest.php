@@ -25,8 +25,14 @@ class StudentIndexRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:255'],
             'cuenta_activa' => ['nullable', 'boolean'],
-            'carrera' => ['nullable', 'integer', 'exists:carreras,id'],
+            'carrera' => ['nullable', 'integer', 'min:1', 'exists:carreras,id'],
             'per_page' => ['nullable', 'integer', 'between:1,100'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['carrera.min' => 'La carrera seleccionada debe tener un identificador positivo.'];
     }
 }

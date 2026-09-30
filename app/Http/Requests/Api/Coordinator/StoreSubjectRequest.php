@@ -27,9 +27,20 @@ class StoreSubjectRequest extends FormRequest
         return [
             'codigo_asignatura' => ['required', 'string', 'max:50'],
             'nombre_asignatura' => ['required', 'string', 'max:150'],
-            'numero_creditos' => ['required', 'integer', 'min:0'],
+            'numero_creditos' => ['required', 'integer:strict', 'min:0', 'max:2147483647'],
             'nivel_ciclo' => ['required', Rule::enum(AcademicLevel::class)],
-            'hr_carga_horaria' => ['required', 'integer', 'min:0'],
+            'hr_carga_horaria' => ['required', 'integer:strict', 'min:0', 'max:2147483647'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'numero_creditos.integer' => 'El número de créditos debe ser un entero.',
+            'hr_carga_horaria.integer' => 'La carga horaria debe ser un entero.',
+            'numero_creditos.max' => 'El número de créditos no puede superar 2147483647.',
+            'hr_carga_horaria.max' => 'La carga horaria no puede superar 2147483647.',
         ];
     }
 }

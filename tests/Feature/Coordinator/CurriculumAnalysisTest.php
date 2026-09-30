@@ -16,7 +16,7 @@ class CurriculumAnalysisTest extends CoordinatorWorkflowTestCase
         ])->assertCreated()->json('data.id');
         $origin = $this->postJson('/api/v1/coordinator/curricula', [
             'nombre' => 'Malla de origen', 'tipo' => 'origen',
-            'carrera_id' => $context['career']->id, 'estudiante_id' => $context['student']->id,
+            'estudiante_id' => $context['student']->id,
         ])->assertCreated()->json('data.id');
 
         $subject = $this->postJson('/api/v1/coordinator/curricula/'.$institutional.'/subjects', [

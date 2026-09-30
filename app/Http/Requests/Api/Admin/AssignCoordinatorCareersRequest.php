@@ -24,8 +24,17 @@ class AssignCoordinatorCareersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'carrera_ids' => ['required', 'array'],
-            'carrera_ids.*' => ['integer', 'distinct', Rule::exists('carreras', 'id')],
+            'carrera_ids' => ['required', 'array', 'max:50'],
+            'carrera_ids.*' => ['integer', 'min:1', 'distinct', Rule::exists('carreras', 'id')],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'carrera_ids.max' => 'No puede asignar más de 50 carreras a la vez.',
+            'carrera_ids.*.min' => 'Cada carrera debe tener un identificador positivo.',
         ];
     }
 }

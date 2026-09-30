@@ -71,7 +71,7 @@ class EndToEndHomologacionTest extends TestCase
         $this->postJson("/api/v1/coordinator/documents/{$documentId}/verification", ['estado' => true])->assertOk();
         $originCurriculumId = $this->postJson('/api/v1/coordinator/curricula', [
             'nombre' => 'Malla de origen integral', 'tipo' => 'origen',
-            'carrera_id' => $career->id, 'estudiante_id' => $studentId,
+            'estudiante_id' => $studentId,
         ])->assertCreated()->json('data.id');
         $destinationCurriculumId = $this->postJson('/api/v1/coordinator/curricula', [
             'nombre' => 'Malla institucional integral', 'tipo' => 'institucional',

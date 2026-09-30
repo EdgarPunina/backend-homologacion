@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Student;
 
+use App\Rules\PeriodoCursado;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -26,7 +27,7 @@ class UpdateAcademicBackgroundRequest extends FormRequest
             'universidad_origen' => ['sometimes', 'required', 'string', 'max:255'],
             'carrera_origen' => ['sometimes', 'required', 'string', 'max:255'],
             'tipo_institucion' => ['sometimes', 'required', 'string', 'max:100'],
-            'periodo_cursado' => ['sometimes', 'required', 'string', 'max:100'],
+            'periodo_cursado' => ['sometimes', 'required', 'string', 'max:100', new PeriodoCursado],
         ];
     }
 }

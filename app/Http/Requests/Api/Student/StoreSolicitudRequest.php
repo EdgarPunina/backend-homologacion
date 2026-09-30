@@ -24,9 +24,18 @@ class StoreSolicitudRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'coordinador_carrera_id' => ['required', 'integer'],
-            'tramite_proceso_id' => ['required', 'integer', Rule::exists('tramite_proceso', 'id')],
+            'coordinador_carrera_id' => ['required', 'integer', 'min:1'],
+            'tramite_proceso_id' => ['required', 'integer', 'min:1', Rule::exists('tramite_proceso', 'id')],
             'procedencia_estudios' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'coordinador_carrera_id.min' => 'La asignación del coordinador debe tener un identificador positivo.',
+            'tramite_proceso_id.min' => 'El trámite seleccionado debe tener un identificador positivo.',
         ];
     }
 }

@@ -26,7 +26,17 @@ class StoreAnalysisResultRequest extends FormRequest
     {
         return [
             'conclusion_general' => ['required', Rule::enum(AnalysisConclusion::class)],
-            'total_creditos_reconocidos' => ['required', 'integer', 'min:0'],
+            'total_creditos_reconocidos' => ['required', 'integer:strict', 'min:0', 'max:2147483647'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'total_creditos_reconocidos.integer' => 'El total de créditos reconocidos debe ser un número entero.',
+            'total_creditos_reconocidos.min' => 'El total de créditos reconocidos no puede ser negativo.',
+            'total_creditos_reconocidos.max' => 'El total de créditos reconocidos no puede superar 2147483647.',
         ];
     }
 }
